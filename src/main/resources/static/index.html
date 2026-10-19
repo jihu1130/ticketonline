@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>티켓온라인</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="header">
+    <a class="logo" href="/">티켓온라인</a>
+    <nav class="nav"></nav>
+  </header>
+
+  <main class="container">
+    <section class="hero">
+      <h1>한정 수량, 공정한 선착순</h1>
+      <p>티켓과 한정 물품을 정해진 수량만큼만 공정하게 판매합니다.</p>
+    </section>
+
+    <div class="tabs">
+      <button class="tab active" data-type="TICKET">티켓</button>
+      <button class="tab" data-type="GOODS">물품</button>
+    </div>
+
+    <!-- 상품 목록은 5단계(F-03 상품 조회)에서 연결한다 -->
+    <div class="empty" id="product-list">아직 등록된 상품이 없습니다.</div>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script>
+    document.querySelectorAll(".tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+        tab.classList.add("active");
+      });
+    });
+  </script>
+</body>
+</html>

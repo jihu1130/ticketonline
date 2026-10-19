@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>로그인 - 티켓온라인</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="header">
+    <a class="logo" href="/">티켓온라인</a>
+    <nav class="nav"></nav>
+  </header>
+
+  <main class="card">
+    <h1>로그인</h1>
+    <form id="login-form" novalidate>
+      <div class="field">
+        <label for="email">이메일</label>
+        <input id="email" type="email" autocomplete="email" required>
+      </div>
+      <div class="field">
+        <label for="password">비밀번호</label>
+        <input id="password" type="password" autocomplete="current-password" required>
+      </div>
+      <button class="btn" type="submit">로그인</button>
+      <p class="message" id="message"></p>
+    </form>
+    <p class="footer-link">처음이신가요? <a href="/signup.html">회원가입</a></p>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script>
+    const form = document.getElementById("login-form");
+    const message = document.getElementById("message");
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const button = form.querySelector("button[type=submit]");
+      button.disabled = true;
+      try {
+        const result = await api("/api/members/login", {
+          method: "POST",
+          body: { email: form.email.value.trim(), password: form.password.value },
+        });
+        auth.save(result);
+        location.href = "/";
+      } catch (e) {
+        showMessage(message, e.message);
+        button.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

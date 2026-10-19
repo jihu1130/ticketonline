@@ -1,0 +1,26 @@
+server:
+  port:
+    8888
+spring:
+  application:
+    name: ticketonline
+  config:
+    # 실제 비밀번호는 GitHub에 올리지 않는 application-secret.yaml 에 적는다 (없으면 아래 기본값 사용)
+    import: optional:classpath:application-secret.yaml
+  datasource:
+    url: jdbc:mysql://localhost:3306/ticketonline?serverTimezone=Asia/Seoul
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:1234}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    # 화면은 API를 따로 불러 그리므로 요청이 끝나면 DB 연결을 바로 돌려준다
+    open-in-view: false
+
+jwt:
+  # 토큰 서명 비밀키(jwt.secret)는 application-secret.yaml 에만 적는다.
+  # 없으면 서버가 "Could not resolve placeholder 'jwt.secret'" 오류로 시작하지 않는다.
+  # 토큰 유효 시간: 2시간
+  expiration-ms: 7200000
