@@ -13,7 +13,8 @@ import java.util.List;
 
 /**
  * F-02 상품 등록.
- * TICKET: venue, seatGrades(등급), performances(회차 일시), seatMapUrl(선택)
+ * TICKET: venue, seatGrades(등급), performances(회차 일시), seatMapUrl(선택),
+ *         closeBeforeHours(공연 시작 몇 시간 전 예매 마감, 생략 시 1)
  * GOODS : price, quantity, description, deliveryType
  * 종류별 필수 항목은 서비스에서 확인한다. 사진 주소는 POST /api/images 로 받은 값.
  */
@@ -43,6 +44,9 @@ public record ProductCreateRequest(
         String seatMapUrl,
         List<@Valid SeatGradeRequest> seatGrades,
         List<LocalDateTime> performances,
+        @Min(value = 0, message = "예매 마감은 공연 시작 0시간 전 이상이어야 합니다.")
+        @Max(value = 72, message = "예매 마감은 공연 시작 72시간 전까지 정할 수 있습니다.")
+        Integer closeBeforeHours,
 
         // 굿즈
         @Min(value = 0, message = "가격은 0원 이상이어야 합니다.")

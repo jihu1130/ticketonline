@@ -128,8 +128,37 @@ class ProductServiceTest {
     }
 
     @Test
-    void createTicket_rejectsPerformanceBeforeSaleEnd() {
-        assertInvalid(ticket(2, twoGrades, List.of(end.minusHours(1))), "판매 종료 일시 이후");
+    void createTicket_allowsPerformanceInsideSalePeriod() {
+        // 판매 기간(start ~ end) 안에 열리는 1회차와 판매 종료 뒤 2회차를 한 상품으로 등록
+        LocalDateTime inside = start.plusHours(5);
+        ProductResponse response = productService.create(SELLER_ID, ticketWithClose(2, List.of(inside, day1), 1));
+
+        assertThat(response.performances()).hasSize(2);
+        assertThat(response.closeBeforeHours()).isEqualTo(1);
+    }
+
+    @Test
+    void createTicket_bookingClosesAtEarlierOfSaleEndAndBeforeEvent() {
+        LocalDateTime inside = start.plusHours(5);
+        ProductResponse response = productService.create(SELLER_ID, ticketWithClose(2, List.of(inside, day1), 3));
+
+        // 1회차: 공연 3시간 전이 판매 종료보다 이르다
+        assertThat(response.performances().get(0).bookingCloseAt()).isEqualTo(inside.minusHours(3));
+        // 2회차: 판매 종료가 더 이르다
+        assertThat(response.performances().get(1).bookingCloseAt()).isEqualTo(end);
+    }
+
+    @Test
+    void createTicket_rejectsPerformanceWithNoBookingTime() {
+        // 2시간 전 마감인데 판매 시작 1시간 뒤 공연 -> 예매할 수 있는 시간이 없다
+        assertInvalid(ticketWithClose(2, List.of(start.plusHours(1)), 2), "2시간(예매 마감 시간)");
+    }
+
+    @Test
+    void createTicket_usesDefaultCloseHoursWhenMissing() {
+        ProductResponse response = productService.create(SELLER_ID, ticketWithClose(2, List.of(day1), null));
+
+        assertThat(response.closeBeforeHours()).isEqualTo(ProductService.DEFAULT_CLOSE_BEFORE_HOURS);
     }
 
     @Test
@@ -141,7 +170,7 @@ class ProductServiceTest {
     @Test
     void createTicket_rejectsWithoutVenue() {
         ProductCreateRequest request = new ProductCreateRequest(ProductType.TICKET, "콘서트", null, 2,
-                start, end, " ", null, twoGrades, List.of(day1), null, null, null, null);
+                start, end, " ", null, twoGrades, List.of(day1), 1, null, null, null, null);
         assertInvalid(request, "장소");
     }
 
@@ -166,7 +195,13 @@ class ProductServiceTest {
 
     @Test
     void createGoods_rejectsWithoutPrice() {
-        assertInvalid(goods(1, null, 5, DeliveryType.PARCEL), "가격과 판매 수량");
+        assertInvalid(goods(1, null, 5, DeliveryType.PARCEL), "가격을 입력해 주세요.");
+    }
+
+    @Test
+    void createGoods_rejectsWithoutQuantity() {
+        // 가격은 입력했고 수량만 빠졌으면 수량을 알려 준다
+        assertInvalid(goods(1, 30000, null, DeliveryType.PARCEL), "판매 수량을 입력해 주세요.");
     }
 
     @Test
@@ -180,14 +215,14 @@ class ProductServiceTest {
     void create_rejectsSaleStartInPast() {
         ProductCreateRequest request = new ProductCreateRequest(ProductType.TICKET, "콘서트", null, 2,
                 LocalDateTime.now().minusMinutes(1), end, "올림픽홀", null, twoGrades, List.of(day1),
-                null, null, null, null);
+                1, null, null, null, null);
         assertInvalid(request, "현재 이후");
     }
 
     @Test
     void create_rejectsEndNotAfterStart() {
         ProductCreateRequest request = new ProductCreateRequest(ProductType.TICKET, "콘서트", null, 2,
-                start, start, "올림픽홀", null, twoGrades, List.of(day1), null, null, null, null);
+                start, start, "올림픽홀", null, twoGrades, List.of(day1), 1, null, null, null, null);
         assertInvalid(request, "판매 시작 일시 이후");
     }
 
@@ -195,7 +230,7 @@ class ProductServiceTest {
     void create_rejectsExternalImageUrl() {
         ProductCreateRequest request = new ProductCreateRequest(ProductType.TICKET, "콘서트",
                 "https://evil.example.com/a.png", 2, start, end, "올림픽홀", null, twoGrades, List.of(day1),
-                null, null, null, null);
+                1, null, null, null, null);
         assertInvalid(request, "이 사이트에 올린 사진");
     }
 
@@ -319,18 +354,23 @@ class ProductServiceTest {
 
     private ProductCreateRequest ticket(int limit, List<SeatGradeRequest> grades, List<LocalDateTime> performances) {
         return new ProductCreateRequest(ProductType.TICKET, "콘서트", IMAGE, limit, start, end,
-                "올림픽홀", IMAGE, grades, performances, null, null, null, null);
+                "올림픽홀", IMAGE, grades, performances, 1, null, null, null, null);
     }
 
-    private ProductCreateRequest goods(int limit, Integer price, int quantity, DeliveryType deliveryType) {
+    private ProductCreateRequest ticketWithClose(int limit, List<LocalDateTime> performances, Integer closeHours) {
+        return new ProductCreateRequest(ProductType.TICKET, "콘서트", IMAGE, limit, start, end,
+                "올림픽홀", IMAGE, twoGrades, performances, closeHours, null, null, null, null);
+    }
+
+    private ProductCreateRequest goods(int limit, Integer price, Integer quantity, DeliveryType deliveryType) {
         return new ProductCreateRequest(ProductType.GOODS, "한정 굿즈", IMAGE, limit, start, end,
-                null, null, null, null, price, quantity, "1000부 한정", deliveryType);
+                null, null, null, null, null, price, quantity, "1000부 한정", deliveryType);
     }
 
     private ProductUpdateRequest updateTicket(int limit, List<SeatGradeRequest> grades,
                                               List<LocalDateTime> performances) {
         return new ProductUpdateRequest("콘서트", null, limit, start, end,
-                "체조경기장", null, grades, performances, null, null, null, null);
+                "체조경기장", null, grades, performances, 1, null, null, null, null);
     }
 
     private Product savedProduct(ProductType type, LocalDateTime saleStart) {

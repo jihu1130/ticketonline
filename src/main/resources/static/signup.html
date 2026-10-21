@@ -5,17 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>회원가입 - 티켓온라인</title>
   <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
 </head>
 <body>
   <header class="header">
-    <a class="logo" href="/">티켓온라인</a>
-    <nav class="nav"></nav>
+    <div class="header-inner">
+      <a class="logo" href="/"><img class="logo-img" src="/images/logo.svg" alt="TicketOnline 티켓온라인"></a>
+      <nav class="gnb">
+        <a href="/?type=TICKET">티켓</a>
+        <a href="/?type=GOODS">굿즈</a>
+      </nav>
+      <nav class="nav"></nav>
+    </div>
   </header>
 
   <main class="card">
     <h1>회원가입</h1>
+    <p class="card-sub">한 계정으로 구매와 판매를 모두 할 수 있어요</p>
     <form id="signup-form" novalidate>
-      <p class="hint">가입하면 한 계정으로 상품 구매와 판매를 모두 할 수 있습니다.</p>
       <div class="field">
         <label for="email">이메일</label>
         <input id="email" type="email" maxlength="100" autocomplete="email" required>

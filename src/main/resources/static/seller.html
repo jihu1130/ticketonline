@@ -5,14 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>판매 관리 - 티켓온라인</title>
   <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
 </head>
 <body>
   <header class="header">
-    <a class="logo" href="/">티켓온라인</a>
-    <nav class="nav"></nav>
+    <div class="header-inner">
+      <a class="logo" href="/"><img class="logo-img" src="/images/logo.svg" alt="TicketOnline 티켓온라인"></a>
+      <nav class="gnb">
+        <a href="/?type=TICKET">티켓</a>
+        <a href="/?type=GOODS">굿즈</a>
+      </nav>
+      <nav class="nav"></nav>
+    </div>
   </header>
 
-  <main class="container seller-layout">
+  <main class="container">
+  <div class="page-head">
+    <h1>판매 관리</h1>
+    <p>티켓과 굿즈를 등록하고, 판매 시작 전까지 수정할 수 있습니다.</p>
+  </div>
+  <div class="seller-layout">
     <section class="panel">
       <h2 id="form-title">상품 등록</h2>
       <form id="product-form" novalidate>
@@ -24,6 +36,7 @@
           </div>
           <p class="hint" id="type-hint" hidden>종류는 등록 후 바꿀 수 없습니다.</p>
         </div>
+        <h3 class="form-section">기본 정보</h3>
         <div class="field">
           <label for="title">상품명</label>
           <input id="title" maxlength="100" required>
@@ -55,6 +68,7 @@
 
         <!-- 티켓 -->
         <div id="ticket-fields">
+          <h3 class="form-section">공연 정보</h3>
           <div class="field">
             <label for="venue">장소</label>
             <input id="venue" maxlength="200" placeholder="예: 올림픽공원 KSPO DOME">
@@ -77,12 +91,18 @@
             <label>공연 회차</label>
             <div class="row-list" id="performance-rows"></div>
             <button type="button" class="btn-small" id="add-performance">+ 회차 추가</button>
-            <p class="hint">판매 종료 이후여야 합니다. (최대 20개)</p>
+            <p class="hint">판매 기간 안에 있어도 됩니다. (최대 20개)</p>
+          </div>
+          <div class="field">
+            <label for="closeBeforeHours">회차별 예매 마감 (공연 시작 몇 시간 전)</label>
+            <input id="closeBeforeHours" type="number" min="0" max="72" value="1">
+            <p class="hint">회차마다 "공연 시작 N시간 전"과 "판매 종료" 중 이른 시각에 예매가 마감됩니다. (0~72)</p>
           </div>
         </div>
 
         <!-- 굿즈 -->
         <div id="goods-fields" hidden>
+          <h3 class="form-section">굿즈 정보</h3>
           <div class="field-row">
             <div class="field">
               <label for="price">가격 (원)</label>
@@ -106,6 +126,7 @@
           </div>
         </div>
 
+        <div style="height:12px"></div>
         <button class="btn" type="submit" id="submit-button">등록하기</button>
         <button class="btn btn-secondary" type="button" id="cancel-button" hidden>수정 취소</button>
         <p class="message" id="message"></p>
@@ -116,6 +137,7 @@
       <h2>내 판매 상품</h2>
       <div id="product-list"></div>
     </section>
+  </div>
   </main>
 
   <script src="/js/api.js"></script>

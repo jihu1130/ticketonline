@@ -113,6 +113,18 @@ function toNumber(text) {
   return text === "" ? null : Number(text);
 }
 
+/**
+ * 세 칸이 모두 빈 등급 줄을 화면에서 지운다.
+ * 보내는 목록과 화면의 줄 순서가 같아야 서버의 "N번째 좌석 등급" 안내가 화면 줄과 맞는다.
+ * 모든 줄이 비었으면 입력할 수 있게 한 줄은 남긴다 (서버가 "좌석 등급을 1개 이상" 안내).
+ */
+function removeBlankGradeRows() {
+  const blank = (row) => [...row.querySelectorAll("input")].every((input) => input.value.trim() === "");
+  const rows = [...gradeRows.children];
+  rows.filter(blank).forEach((row) => row.remove());
+  if (gradeRows.children.length === 0) addGradeRow();
+}
+
 function readForm() {
   const isTicket = selectedType() === "TICKET";
   const body = {
@@ -126,11 +138,16 @@ function readForm() {
   if (isTicket) {
     body.venue = value("venue");
     body.seatMapUrl = images.seatMapUrl;
-    body.seatGrades = [...gradeRows.children].map((row) => ({
-      name: row.querySelector(".grade-name").value.trim(),
-      price: toNumber(row.querySelector(".grade-price").value.trim()),
-      seatCount: toNumber(row.querySelector(".grade-seats").value.trim()),
-    }));
+    body.closeBeforeHours = toNumber(value("closeBeforeHours"));
+    removeBlankGradeRows();
+    body.seatGrades = [...gradeRows.children]
+      .map((row) => ({
+        name: row.querySelector(".grade-name").value.trim(),
+        price: toNumber(row.querySelector(".grade-price").value.trim()),
+        seatCount: toNumber(row.querySelector(".grade-seats").value.trim()),
+      }))
+      // 남은 빈 줄은 "모두 비었을 때 남겨 둔 한 줄"뿐이라 빼도 번호가 어긋나지 않는다
+      .filter((g) => g.name !== "" || g.price !== null || g.seatCount !== null);
     body.performances = [...performanceRows.children]
       .map((row) => row.querySelector(".performance-at").value)
       .filter((v) => v !== "");
@@ -175,6 +192,7 @@ function startEdit(product) {
 
   if (product.type === "TICKET") {
     document.getElementById("venue").value = product.venue ?? "";
+    document.getElementById("closeBeforeHours").value = product.closeBeforeHours ?? 1;
     setImage(document.querySelector(".image-picker[data-target=seatMapUrl]"), product.seatMapUrl);
     gradeRows.innerHTML = "";
     product.seatGrades.forEach((g) => addGradeRow(g));
@@ -266,7 +284,8 @@ function renderStock(p) {
       .filter((s) => s.performanceId === perf.id)
       .map((s) => `${escapeHtml(gradeName[s.seatGradeId])} ${s.remainingQuantity}/${s.totalQuantity}`)
       .join(" · ");
-    return `<li><strong>${formatDate(perf.eventAt)}</strong> ${stock}</li>`;
+    return `<li><strong>${formatDate(perf.eventAt)}</strong> ${stock}
+      <span class="close-at">예매 마감 ${formatDate(perf.bookingCloseAt)}</span></li>`;
   }).join("");
   const seatMap = p.seatMapUrl
     ? ` · <a href="${p.seatMapUrl}" target="_blank" rel="noopener">좌석 배치도</a>`

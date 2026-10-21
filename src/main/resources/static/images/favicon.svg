@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="stroke" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#4338ca"/>
+      <stop offset="0.55" stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#22d3ee"/>
+    </linearGradient>
+  </defs>
+  <!-- 로고의 티켓 아이콘만 크게 (작은 탭 크기에서도 보이도록 선을 굵게) -->
+  <g transform="translate(32 32) rotate(45) scale(0.9)" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M-14 -27 H14 V-18 A5 5 0 0 0 14 -8 V27 H-14 V-8 A5 5 0 0 0 -14 -18 Z"
+          stroke="url(#stroke)" stroke-width="5"/>
+    <path d="M0 16 V-1" stroke="#4338ca" stroke-width="4.5"/>
+    <path d="M-6 5 L0 -1 L6 5" stroke="#4338ca" stroke-width="4.5"/>
+  </g>
+</svg>

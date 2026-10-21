@@ -5,36 +5,53 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>티켓온라인</title>
   <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
 </head>
 <body>
   <header class="header">
-    <a class="logo" href="/">티켓온라인</a>
-    <nav class="nav"></nav>
+    <div class="header-inner">
+      <a class="logo" href="/"><img class="logo-img" src="/images/logo.svg" alt="TicketOnline 티켓온라인"></a>
+      <nav class="gnb">
+        <a href="/?type=TICKET">티켓</a>
+        <a href="/?type=GOODS">굿즈</a>
+      </nav>
+      <nav class="nav"></nav>
+    </div>
   </header>
 
   <main class="container">
     <section class="hero">
+      <span class="hero-label">선착순 한정 판매</span>
       <h1>한정 수량, 공정한 선착순</h1>
-      <p>티켓과 한정 물품을 정해진 수량만큼만 공정하게 판매합니다.</p>
+      <p>티켓과 한정 굿즈를 정해진 수량만큼만, 누구에게나 공정하게.</p>
     </section>
 
-    <div class="tabs">
-      <button class="tab active" data-type="TICKET">티켓</button>
-      <button class="tab" data-type="GOODS">물품</button>
+    <div class="section-head">
+      <h2 id="list-title">티켓 오픈</h2>
+      <div class="tabs">
+        <button class="tab active" data-type="TICKET">티켓</button>
+        <button class="tab" data-type="GOODS">굿즈</button>
+      </div>
     </div>
 
-    <!-- 상품 목록은 5단계(F-03 상품 조회)에서 연결한다 -->
+    <!-- 상품 목록은 5단계(F-03 상품 조회)에서 .product-grid 로 연결한다 -->
     <div class="empty" id="product-list">아직 등록된 상품이 없습니다.</div>
   </main>
 
   <script src="/js/api.js"></script>
   <script>
+    // 탭 선택 (상단 메뉴의 ?type= 값도 반영)
+    const TITLES = { TICKET: "티켓 오픈", GOODS: "한정 굿즈" };
+    function selectTab(type) {
+      document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.type === type));
+      document.querySelectorAll(".gnb a").forEach(a => a.classList.toggle("active", a.href.endsWith("type=" + type)));
+      document.getElementById("list-title").textContent = TITLES[type];
+    }
     document.querySelectorAll(".tab").forEach(tab => {
-      tab.addEventListener("click", () => {
-        document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-        tab.classList.add("active");
-      });
+      tab.addEventListener("click", () => selectTab(tab.dataset.type));
     });
+    const startType = new URLSearchParams(location.search).get("type");
+    selectTab(TITLES[startType] ? startType : "TICKET");
   </script>
 </body>
 </html>

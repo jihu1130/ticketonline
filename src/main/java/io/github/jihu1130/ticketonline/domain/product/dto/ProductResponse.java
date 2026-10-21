@@ -27,6 +27,7 @@ public record ProductResponse(
         // 티켓
         String venue,
         String seatMapUrl,
+        Integer closeBeforeHours,
         List<SeatGradeResponse> seatGrades,
         List<PerformanceResponse> performances,
         // 굿즈
@@ -42,9 +43,11 @@ public record ProductResponse(
         }
     }
 
-    public record PerformanceResponse(Long id, LocalDateTime eventAt) {
-        static PerformanceResponse from(Performance p) {
-            return new PerformanceResponse(p.getId(), p.getEventAt());
+    /** bookingCloseAt: 이 회차의 예매 마감 시각 (판매 종료와 공연 시작 N시간 전 중 이른 시각) */
+    public record PerformanceResponse(Long id, LocalDateTime eventAt, LocalDateTime bookingCloseAt) {
+        static PerformanceResponse from(Performance p, LocalDateTime saleEndAt, int closeBeforeHours) {
+            return new PerformanceResponse(p.getId(), p.getEventAt(),
+                    Performance.bookingCloseAt(p.getEventAt(), saleEndAt, closeBeforeHours));
         }
     }
 
@@ -74,8 +77,12 @@ public record ProductResponse(
                 product.getCreatedAt(),
                 ticket == null ? null : ticket.getVenue(),
                 ticket == null ? null : ticket.getSeatMapUrl(),
+                ticket == null ? null : ticket.getCloseBeforeHours(),
                 grades.stream().map(SeatGradeResponse::from).toList(),
-                performances.stream().map(PerformanceResponse::from).toList(),
+                performances.stream()
+                        .map(p -> PerformanceResponse.from(p, product.getSaleEndAt(),
+                                ticket == null ? 0 : ticket.getCloseBeforeHours()))
+                        .toList(),
                 goods == null ? null : goods.getDescription(),
                 goods == null ? null : goods.getDeliveryType(),
                 saleItems.stream().map(SaleItemResponse::from).toList());

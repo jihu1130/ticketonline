@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -52,7 +53,17 @@ class GlobalExceptionHandlerTest {
                         .content("{\"title\": \"\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_INPUT"))
-                .andExpect(jsonPath("$.message").value("title : 상품명을 입력해 주세요."));
+                .andExpect(jsonPath("$.message").value("상품명을 입력해 주세요."));
+    }
+
+    @Test
+    void validationFailure_inList_showsPosition() throws Exception {
+        mockMvc.perform(post("/test/valid-list")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"seatGrades\": [{\"name\": \"VIP\"}, {\"name\": \"\"}]}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_INPUT"))
+                .andExpect(jsonPath("$.message").value("2번째 좌석 등급: 등급 이름을 입력해 주세요."));
     }
 
     @Test
@@ -89,6 +100,10 @@ class GlobalExceptionHandlerTest {
         void valid(@Valid @RequestBody TestRequest request) {
         }
 
+        @PostMapping("/test/valid-list")
+        void validList(@Valid @RequestBody TestListRequest request) {
+        }
+
         @GetMapping("/test/boom")
         void boom() {
             throw new IllegalStateException("DB 비밀번호 같은 내부 정보");
@@ -96,5 +111,11 @@ class GlobalExceptionHandlerTest {
     }
 
     record TestRequest(@NotBlank(message = "상품명을 입력해 주세요.") String title) {
+    }
+
+    record TestGrade(@NotBlank(message = "등급 이름을 입력해 주세요.") String name) {
+    }
+
+    record TestListRequest(List<@Valid TestGrade> seatGrades) {
     }
 }

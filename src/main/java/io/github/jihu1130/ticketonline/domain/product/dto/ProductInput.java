@@ -26,6 +26,9 @@ public interface ProductInput {
 
     List<LocalDateTime> performances();
 
+    /** 공연 시작 몇 시간 전에 예매를 마감할지. null이면 기본값 */
+    Integer closeBeforeHours();
+
     // 굿즈
     Integer price();
 

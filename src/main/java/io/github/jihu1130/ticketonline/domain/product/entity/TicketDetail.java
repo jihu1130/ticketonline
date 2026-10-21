@@ -37,15 +37,21 @@ public class TicketDetail {
     @Column(length = 255)
     private String seatMapUrl;
 
+    /** 회차별 예매 마감: 공연 시작 몇 시간 전 (0~72). 모든 회차에 같게 적용 */
+    @Column(nullable = false)
+    private int closeBeforeHours;
+
     @Builder
-    private TicketDetail(Product product, String venue, String seatMapUrl) {
+    private TicketDetail(Product product, String venue, String seatMapUrl, int closeBeforeHours) {
         this.product = product;
         this.venue = venue;
         this.seatMapUrl = seatMapUrl;
+        this.closeBeforeHours = closeBeforeHours;
     }
 
-    public void update(String venue, String seatMapUrl) {
+    public void update(String venue, String seatMapUrl, int closeBeforeHours) {
         this.venue = venue;
         this.seatMapUrl = seatMapUrl;
+        this.closeBeforeHours = closeBeforeHours;
     }
 }

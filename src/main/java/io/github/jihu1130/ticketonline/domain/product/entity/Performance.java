@@ -40,4 +40,13 @@ public class Performance {
         this.product = product;
         this.eventAt = eventAt;
     }
+
+    /**
+     * 이 회차의 예매 마감 시각 = 상품 판매 종료와 "공연 시작 N시간 전" 중 이른 시각.
+     * 예) 판매 종료 11/22 22:00, 1시간 전 마감 -> 11/2 19:00 공연은 11/2 18:00, 11/25 공연은 11/22 22:00
+     */
+    public static LocalDateTime bookingCloseAt(LocalDateTime eventAt, LocalDateTime saleEndAt, int closeBeforeHours) {
+        LocalDateTime beforeEvent = eventAt.minusHours(closeBeforeHours);
+        return beforeEvent.isBefore(saleEndAt) ? beforeEvent : saleEndAt;
+    }
 }

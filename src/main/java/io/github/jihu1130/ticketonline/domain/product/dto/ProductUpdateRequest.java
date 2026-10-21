@@ -37,6 +37,9 @@ public record ProductUpdateRequest(
         String seatMapUrl,
         List<@Valid SeatGradeRequest> seatGrades,
         List<LocalDateTime> performances,
+        @Min(value = 0, message = "예매 마감은 공연 시작 0시간 전 이상이어야 합니다.")
+        @Max(value = 72, message = "예매 마감은 공연 시작 72시간 전까지 정할 수 있습니다.")
+        Integer closeBeforeHours,
 
         // 굿즈
         @Min(value = 0, message = "가격은 0원 이상이어야 합니다.")

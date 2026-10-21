@@ -1,6 +1,9 @@
 package io.github.jihu1130.ticketonline.global.exception;
 
 import io.github.jihu1130.ticketonline.global.response.ErrorResponse;
+import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -28,14 +31,35 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(code, e.getMessage()));
     }
 
-    /** @Valid 검사 실패: 첫 번째로 틀린 항목의 안내 문구를 보낸다. */
+    /**
+     * @Valid 검사 실패: 첫 번째로 틀린 항목의 안내 문구를 보낸다.
+     * 안내 문구가 이미 한국어로 무엇이 틀렸는지 말하므로 영어 항목 이름은 붙이지 않는다.
+     * 목록 안의 항목은 몇 번째인지 붙인다. 예) seatGrades[1].name -> "2번째 좌석 등급: 등급 이름을 입력해 주세요."
+     */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException e) {
         FieldError fieldError = e.getBindingResult().getFieldError();
         String message = fieldError != null
-                ? fieldError.getField() + " : " + fieldError.getDefaultMessage()
+                ? toUserMessage(fieldError.getField(), fieldError.getDefaultMessage())
                 : ErrorCode.INVALID_INPUT.getMessage();
         return build(ErrorCode.INVALID_INPUT, message);
+    }
+
+    /** 목록 항목 이름 -> 화면에 보일 이름 */
+    private static final Map<String, String> LIST_NAMES = Map.of(
+            "seatGrades", "좌석 등급",
+            "performances", "공연 회차");
+
+    private static final Pattern LIST_FIELD = Pattern.compile("^(\\w+)\\[(\\d+)]");
+
+    static String toUserMessage(String field, String message) {
+        Matcher m = LIST_FIELD.matcher(field);
+        if (m.find()) {
+            String name = LIST_NAMES.getOrDefault(m.group(1), "항목");
+            int position = Integer.parseInt(m.group(2)) + 1;
+            return position + "번째 " + name + ": " + message;
+        }
+        return message;
     }
 
     /** JSON 형식이 잘못되었거나, 숫자 자리에 글자가 들어온 경우 */

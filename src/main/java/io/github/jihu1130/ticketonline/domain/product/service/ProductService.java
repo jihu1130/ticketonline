@@ -45,6 +45,8 @@ public class ProductService {
 
     static final int MAX_SEAT_GRADES = 10;
     static final int MAX_PERFORMANCES = 20;
+    /** 예매 마감 시간을 보내지 않았을 때: 공연 시작 1시간 전 마감 */
+    static final int DEFAULT_CLOSE_BEFORE_HOURS = 1;
 
     private final ProductRepository productRepository;
     private final TicketDetailRepository ticketDetailRepository;
@@ -74,6 +76,7 @@ public class ProductService {
                     .product(product)
                     .venue(request.venue().trim())
                     .seatMapUrl(blankToNull(request.seatMapUrl()))
+                    .closeBeforeHours(closeBeforeHours(request))
                     .build();
             ticketDetailRepository.save(ticket);
             return saveTicketStock(product, ticket, request);
@@ -105,7 +108,7 @@ public class ProductService {
         if (product.getType() == ProductType.TICKET) {
             TicketDetail ticket = ticketDetailRepository.findById(productId)
                     .orElseThrow(() -> new CustomException(ErrorCode.PRODUCT_NOT_FOUND));
-            ticket.update(request.venue().trim(), blankToNull(request.seatMapUrl()));
+            ticket.update(request.venue().trim(), blankToNull(request.seatMapUrl()), closeBeforeHours(request));
             return saveTicketStock(product, ticket, request);
         }
         GoodsDetail goods = goodsDetailRepository.findById(productId)
@@ -269,6 +272,9 @@ public class ProductService {
         if (performances.size() > MAX_PERFORMANCES) {
             throw invalid("공연 회차는 " + MAX_PERFORMANCES + "개까지 등록할 수 있습니다.");
         }
+        // 공연은 판매 기간 안에 있어도 된다. 회차마다 "공연 시작 N시간 전"에 예매가 마감되므로
+        // 그 마감 시각이 판매 시작보다 뒤여야 예매할 시간이 생긴다.
+        int closeHours = closeBeforeHours(in);
         Set<LocalDateTime> seen = new HashSet<>();
         for (LocalDateTime eventAt : performances) {
             if (eventAt == null) {
@@ -277,8 +283,9 @@ public class ProductService {
             if (!seen.add(eventAt)) {
                 throw invalid("같은 공연 일시가 두 번 입력되었습니다.");
             }
-            if (!eventAt.isAfter(in.saleEndAt())) {
-                throw invalid("공연 일시는 판매 종료 일시 이후여야 합니다.");
+            if (!eventAt.minusHours(closeHours).isAfter(in.saleStartAt())) {
+                throw invalid("공연 일시는 판매 시작 일시보다 " + closeHours
+                        + "시간(예매 마감 시간) 이상 뒤여야 합니다.");
             }
         }
 
@@ -289,11 +296,17 @@ public class ProductService {
     }
 
     private void validateGoods(ProductInput in) {
-        if (in.price() == null || in.quantity() == null) {
-            throw invalid("굿즈는 가격과 판매 수량을 입력해 주세요.");
+        if (in.price() == null) {
+            throw invalid("가격을 입력해 주세요.");
         }
-        if (isBlank(in.description()) || in.deliveryType() == null) {
-            throw invalid("굿즈는 상품 설명과 수령 방법을 입력해 주세요.");
+        if (in.quantity() == null) {
+            throw invalid("판매 수량을 입력해 주세요.");
+        }
+        if (isBlank(in.description())) {
+            throw invalid("상품 설명을 입력해 주세요.");
+        }
+        if (in.deliveryType() == null) {
+            throw invalid("수령 방법을 선택해 주세요.");
         }
         if (in.maxPerPerson() > in.quantity()) {
             throw invalid("1인 구매 제한 수량은 판매 수량보다 클 수 없습니다.");
@@ -305,6 +318,10 @@ public class ProductService {
         if (!isBlank(url) && !ImageService.isUploadedUrl(url)) {
             throw invalid("사진은 이 사이트에 올린 사진만 사용할 수 있습니다.");
         }
+    }
+
+    private static int closeBeforeHours(ProductInput in) {
+        return in.closeBeforeHours() == null ? DEFAULT_CLOSE_BEFORE_HOURS : in.closeBeforeHours();
     }
 
     private static boolean isBlank(String text) {

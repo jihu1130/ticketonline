@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 372 80" role="img" aria-label="TicketOnline">
+  <title>TicketOnline</title>
+  <defs>
+    <!-- 아이콘 선: 남보라 -> 하늘색 -->
+    <linearGradient id="stroke" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#4338ca"/>
+      <stop offset="0.55" stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#22d3ee"/>
+    </linearGradient>
+    <!-- 글자 뒤 빛 번짐: 하늘색 -> 보라 -->
+    <linearGradient id="glowColor" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="0.65" stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#a855f7"/>
+    </linearGradient>
+    <filter id="glow" x="-10%" y="-40%" width="120%" height="180%">
+      <feGaussianBlur stdDeviation="2.6"/>
+    </filter>
+    <!--
+      티켓 모양 (세로로 그린 뒤 오른쪽 위로 기울임)
+      위쪽 끝 가까이 양옆에 홈, 그 사이에 절취선
+    -->
+    <path id="ticket" d="M-13 -26 H13 V-17 A4.5 4.5 0 0 0 13 -8 V26 H-13 V-8 A4.5 4.5 0 0 0 -13 -17 Z"/>
+  </defs>
+
+  <!-- 아이콘 빛 번짐 -->
+  <g transform="translate(36 32) rotate(45)" filter="url(#glow)" opacity="0.45">
+    <use href="#ticket" fill="none" stroke="#22d3ee" stroke-width="5"/>
+  </g>
+
+  <!-- 티켓 + 절취선 + 화살표 -->
+  <g transform="translate(36 32) rotate(45)" fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <use href="#ticket" stroke="url(#stroke)" stroke-width="3.2"/>
+    <line x1="-8" y1="-12.5" x2="8" y2="-12.5" stroke="#3b82f6" stroke-width="2.4" stroke-dasharray="2.5 3.5"/>
+    <!-- 티켓 방향(오른쪽 위)으로 향하는 화살표 -->
+    <path d="M0 15 V-1" stroke="#4338ca" stroke-width="3"/>
+    <path d="M-5.5 4.5 L0 -1 L5.5 4.5" stroke="#4338ca" stroke-width="3"/>
+  </g>
+
+  <!-- 반짝이 -->
+  <g fill="#4338ca">
+    <path d="M12 6 L13.4 9.6 L17 11 L13.4 12.4 L12 16 L10.6 12.4 L7 11 L10.6 9.6 Z"/>
+    <path d="M6 24 L6.9 26.1 L9 27 L6.9 27.9 L6 30 L5.1 27.9 L3 27 L5.1 26.1 Z"/>
+    <path d="M62 44 L62.9 46.1 L65 47 L62.9 47.9 L62 50 L61.1 47.9 L59 47 L61.1 46.1 Z"/>
+  </g>
+
+  <!-- 아이콘 아래 ONLINE -->
+  <text x="34" y="75" text-anchor="middle" textLength="52" lengthAdjust="spacingAndGlyphs"
+        font-family="'Segoe UI', Arial, sans-serif" font-size="12.5" font-weight="700"
+        fill="#1e1b6e">ONLINE</text>
+
+  <!-- 글자 빛 번짐 -->
+  <text x="80" y="54" textLength="282" lengthAdjust="spacingAndGlyphs"
+        font-family="'Segoe UI', Arial, sans-serif" font-size="42" font-weight="700"
+        fill="none" stroke="url(#glowColor)" stroke-width="5" stroke-linejoin="round"
+        filter="url(#glow)" opacity="0.4">TicketOnline</text>
+
+  <!-- 글자 -->
+  <text x="80" y="54" textLength="282" lengthAdjust="spacingAndGlyphs"
+        font-family="'Segoe UI', Arial, sans-serif" font-size="42" font-weight="700"
+        fill="#1e1b6e">TicketOnline</text>
+</svg>
