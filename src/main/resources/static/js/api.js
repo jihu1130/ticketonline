@@ -81,6 +81,7 @@ function renderHeader() {
   const adminBadge = member.role === "ADMIN" ? `<span class="badge">관리자</span>` : "";
   nav.innerHTML = `
     ${adminBadge}
+    <a href="/seller.html">판매 관리</a>
     <span>${escapeHtml(member.name)}님</span>
     <button class="btn-text" id="logout-button">로그아웃</button>`;
   document.getElementById("logout-button").addEventListener("click", () => {

@@ -45,4 +45,9 @@ public class GoodsDetail {
         this.description = description;
         this.deliveryType = deliveryType;
     }
+
+    public void update(String description, DeliveryType deliveryType) {
+        this.description = description;
+        this.deliveryType = deliveryType;
+    }
 }

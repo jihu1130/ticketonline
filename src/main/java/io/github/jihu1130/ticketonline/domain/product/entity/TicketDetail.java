@@ -44,4 +44,9 @@ public class TicketDetail {
         this.eventAt = eventAt;
         this.venue = venue;
     }
+
+    public void update(LocalDateTime eventAt, String venue) {
+        this.eventAt = eventAt;
+        this.venue = venue;
+    }
 }

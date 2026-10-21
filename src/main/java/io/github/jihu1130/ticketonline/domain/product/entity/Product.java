@@ -94,4 +94,23 @@ public class Product {
     public int getRemainingQuantity() {
         return totalQuantity - soldQuantity;
     }
+
+    /** 수정은 판매 시작 전에만 하므로 판매 수량은 건드리지 않는다. */
+    public void update(String title, int price, int totalQuantity, int maxPerPerson,
+                       LocalDateTime saleStartAt, LocalDateTime saleEndAt) {
+        this.title = title;
+        this.price = price;
+        this.totalQuantity = totalQuantity;
+        this.maxPerPerson = maxPerPerson;
+        this.saleStartAt = saleStartAt;
+        this.saleEndAt = saleEndAt;
+    }
+
+    public boolean isSaleStarted(LocalDateTime now) {
+        return !now.isBefore(saleStartAt);
+    }
+
+    public boolean isOwnedBy(Long memberId) {
+        return seller.getId().equals(memberId);
+    }
 }

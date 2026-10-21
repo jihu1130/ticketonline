@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>판매 관리 - 티켓온라인</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="header">
+    <a class="logo" href="/">티켓온라인</a>
+    <nav class="nav"></nav>
+  </header>
+
+  <main class="container seller-layout">
+    <section class="panel">
+      <h2 id="form-title">상품 등록</h2>
+      <form id="product-form" novalidate>
+        <div class="field">
+          <label>상품 종류</label>
+          <div class="radio-group" id="type-group">
+            <label><input type="radio" name="type" value="TICKET" checked> 티켓</label>
+            <label><input type="radio" name="type" value="GOODS"> 굿즈</label>
+          </div>
+          <p class="hint" id="type-hint" hidden>종류는 등록 후 바꿀 수 없습니다.</p>
+        </div>
+        <div class="field">
+          <label for="title">상품명</label>
+          <input id="title" maxlength="100" required>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="price">가격 (원)</label>
+            <input id="price" type="number" min="0" required>
+          </div>
+          <div class="field">
+            <label for="totalQuantity">판매 수량</label>
+            <input id="totalQuantity" type="number" min="1" required>
+          </div>
+          <div class="field">
+            <label for="maxPerPerson">1인 구매 제한</label>
+            <input id="maxPerPerson" type="number" min="1" required>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="saleStartAt">판매 시작</label>
+            <input id="saleStartAt" type="datetime-local" required>
+          </div>
+          <div class="field">
+            <label for="saleEndAt">판매 종료</label>
+            <input id="saleEndAt" type="datetime-local" required>
+          </div>
+        </div>
+
+        <div id="ticket-fields">
+          <div class="field-row">
+            <div class="field">
+              <label for="eventAt">공연 일시</label>
+              <input id="eventAt" type="datetime-local">
+              <p class="hint">판매 종료 이후여야 합니다.</p>
+            </div>
+            <div class="field">
+              <label for="venue">장소</label>
+              <input id="venue" maxlength="200">
+            </div>
+          </div>
+        </div>
+
+        <div id="goods-fields" hidden>
+          <div class="field">
+            <label for="description">상품 설명</label>
+            <textarea id="description" rows="4" maxlength="2000"></textarea>
+          </div>
+          <div class="field">
+            <label for="deliveryType">수령 방법</label>
+            <select id="deliveryType">
+              <option value="PARCEL">택배</option>
+              <option value="PICKUP">현장 수령</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="btn" type="submit" id="submit-button">등록하기</button>
+        <button class="btn btn-secondary" type="button" id="cancel-button" hidden>수정 취소</button>
+        <p class="message" id="message"></p>
+      </form>
+    </section>
+
+    <section class="panel">
+      <h2>내 판매 상품</h2>
+      <div id="product-list"></div>
+    </section>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/seller.js"></script>
+</body>
+</html>
