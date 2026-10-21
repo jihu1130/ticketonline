@@ -2,124 +2,210 @@ package io.github.jihu1130.ticketonline.domain.product.service;
 
 import io.github.jihu1130.ticketonline.domain.member.repository.MemberRepository;
 import io.github.jihu1130.ticketonline.domain.product.dto.ProductCreateRequest;
+import io.github.jihu1130.ticketonline.domain.product.dto.ProductInput;
 import io.github.jihu1130.ticketonline.domain.product.dto.ProductResponse;
 import io.github.jihu1130.ticketonline.domain.product.dto.ProductUpdateRequest;
-import io.github.jihu1130.ticketonline.domain.product.entity.DeliveryType;
+import io.github.jihu1130.ticketonline.domain.product.dto.SeatGradeRequest;
 import io.github.jihu1130.ticketonline.domain.product.entity.GoodsDetail;
+import io.github.jihu1130.ticketonline.domain.product.entity.Performance;
 import io.github.jihu1130.ticketonline.domain.product.entity.Product;
 import io.github.jihu1130.ticketonline.domain.product.entity.ProductType;
+import io.github.jihu1130.ticketonline.domain.product.entity.SaleItem;
+import io.github.jihu1130.ticketonline.domain.product.entity.SeatGrade;
 import io.github.jihu1130.ticketonline.domain.product.entity.TicketDetail;
 import io.github.jihu1130.ticketonline.domain.product.repository.GoodsDetailRepository;
+import io.github.jihu1130.ticketonline.domain.product.repository.PerformanceRepository;
 import io.github.jihu1130.ticketonline.domain.product.repository.ProductRepository;
+import io.github.jihu1130.ticketonline.domain.product.repository.SaleItemRepository;
+import io.github.jihu1130.ticketonline.domain.product.repository.SeatGradeRepository;
 import io.github.jihu1130.ticketonline.domain.product.repository.TicketDetailRepository;
 import io.github.jihu1130.ticketonline.global.exception.CustomException;
 import io.github.jihu1130.ticketonline.global.exception.ErrorCode;
+import io.github.jihu1130.ticketonline.global.upload.ImageService;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** F-02 상품 등록 / 내 판매 상품 / 수정 / 삭제 */
+/**
+ * F-02 상품 등록 / 내 판매 상품 / 수정 / 삭제
+ * 티켓은 등급과 회차를 받아 회차 x 등급 조합마다 판매 단위(SaleItem)를 만든다.
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class ProductService {
 
+    static final int MAX_SEAT_GRADES = 10;
+    static final int MAX_PERFORMANCES = 20;
+
     private final ProductRepository productRepository;
     private final TicketDetailRepository ticketDetailRepository;
     private final GoodsDetailRepository goodsDetailRepository;
+    private final SeatGradeRepository seatGradeRepository;
+    private final PerformanceRepository performanceRepository;
+    private final SaleItemRepository saleItemRepository;
     private final MemberRepository memberRepository;
 
     @Transactional
     public ProductResponse create(Long sellerId, ProductCreateRequest request) {
-        validate(request.type(), request.totalQuantity(), request.maxPerPerson(),
-                request.saleStartAt(), request.saleEndAt(),
-                request.eventAt(), request.venue(), request.description(), request.deliveryType());
+        validate(request.type(), request);
 
         Product product = Product.builder()
                 .seller(memberRepository.getReferenceById(sellerId))
                 .type(request.type())
                 .title(request.title().trim())
-                .price(request.price())
-                .totalQuantity(request.totalQuantity())
+                .imageUrl(blankToNull(request.imageUrl()))
                 .maxPerPerson(request.maxPerPerson())
                 .saleStartAt(request.saleStartAt())
                 .saleEndAt(request.saleEndAt())
                 .build();
         productRepository.save(product);
 
-        TicketDetail ticket = null;
-        GoodsDetail goods = null;
         if (request.type() == ProductType.TICKET) {
-            ticket = TicketDetail.builder()
+            TicketDetail ticket = TicketDetail.builder()
                     .product(product)
-                    .eventAt(request.eventAt())
                     .venue(request.venue().trim())
+                    .seatMapUrl(blankToNull(request.seatMapUrl()))
                     .build();
             ticketDetailRepository.save(ticket);
-        } else {
-            goods = GoodsDetail.builder()
-                    .product(product)
-                    .description(request.description().trim())
-                    .deliveryType(request.deliveryType())
-                    .build();
-            goodsDetailRepository.save(goods);
+            return saveTicketStock(product, ticket, request);
         }
-        return ProductResponse.of(product, ticket, goods);
+        GoodsDetail goods = GoodsDetail.builder()
+                .product(product)
+                .description(request.description().trim())
+                .deliveryType(request.deliveryType())
+                .build();
+        goodsDetailRepository.save(goods);
+        return saveGoodsStock(product, goods, request);
     }
 
     /** 내가 등록한 상품 (최근 등록 순) */
     public List<ProductResponse> getMyProducts(Long sellerId) {
-        List<Product> products = productRepository.findBySellerIdOrderByCreatedAtDesc(sellerId);
-        List<Long> ids = products.stream().map(Product::getId).toList();
-        Map<Long, TicketDetail> tickets = ticketDetailRepository.findAllById(ids).stream()
-                .collect(Collectors.toMap(TicketDetail::getProductId, Function.identity()));
-        Map<Long, GoodsDetail> goods = goodsDetailRepository.findAllById(ids).stream()
-                .collect(Collectors.toMap(GoodsDetail::getProductId, Function.identity()));
-        return products.stream()
-                .map(p -> ProductResponse.of(p, tickets.get(p.getId()), goods.get(p.getId())))
-                .toList();
+        return toResponses(productRepository.findBySellerIdOrderByCreatedAtDesc(sellerId));
     }
 
-    /** 판매 시작 전에, 등록한 본인만 수정할 수 있다. */
+    /** 판매 시작 전에, 등록한 본인만 수정할 수 있다. 등급·회차·재고는 새로 만든다. */
     @Transactional
     public ProductResponse update(Long memberId, Long productId, ProductUpdateRequest request) {
         Product product = findEditableProduct(memberId, productId);
-        validate(product.getType(), request.totalQuantity(), request.maxPerPerson(),
-                request.saleStartAt(), request.saleEndAt(),
-                request.eventAt(), request.venue(), request.description(), request.deliveryType());
+        validate(product.getType(), request);
 
-        product.update(request.title().trim(), request.price(), request.totalQuantity(),
-                request.maxPerPerson(), request.saleStartAt(), request.saleEndAt());
+        product.update(request.title().trim(), blankToNull(request.imageUrl()), request.maxPerPerson(),
+                request.saleStartAt(), request.saleEndAt());
+        deleteStock(productId);
 
-        TicketDetail ticket = null;
-        GoodsDetail goods = null;
         if (product.getType() == ProductType.TICKET) {
-            ticket = ticketDetailRepository.findById(productId)
+            TicketDetail ticket = ticketDetailRepository.findById(productId)
                     .orElseThrow(() -> new CustomException(ErrorCode.PRODUCT_NOT_FOUND));
-            ticket.update(request.eventAt(), request.venue().trim());
-        } else {
-            goods = goodsDetailRepository.findById(productId)
-                    .orElseThrow(() -> new CustomException(ErrorCode.PRODUCT_NOT_FOUND));
-            goods.update(request.description().trim(), request.deliveryType());
+            ticket.update(request.venue().trim(), blankToNull(request.seatMapUrl()));
+            return saveTicketStock(product, ticket, request);
         }
-        return ProductResponse.of(product, ticket, goods);
+        GoodsDetail goods = goodsDetailRepository.findById(productId)
+                .orElseThrow(() -> new CustomException(ErrorCode.PRODUCT_NOT_FOUND));
+        goods.update(request.description().trim(), request.deliveryType());
+        return saveGoodsStock(product, goods, request);
     }
 
     /** 판매 시작 전에, 등록한 본인만 삭제할 수 있다. 판매 전이라 주문 기록은 없다. */
     @Transactional
     public void delete(Long memberId, Long productId) {
         Product product = findEditableProduct(memberId, productId);
+        deleteStock(productId);
         if (product.getType() == ProductType.TICKET) {
             ticketDetailRepository.deleteById(productId);
         } else {
             goodsDetailRepository.deleteById(productId);
         }
         productRepository.delete(product);
+    }
+
+    // ---------- 저장 ----------
+
+    /** 등급과 회차를 저장하고, 회차 x 등급마다 재고를 만든다. */
+    private ProductResponse saveTicketStock(Product product, TicketDetail ticket, ProductInput input) {
+        List<SeatGrade> grades = new ArrayList<>();
+        for (SeatGradeRequest g : input.seatGrades()) {
+            grades.add(SeatGrade.builder()
+                    .product(product)
+                    .name(g.name().trim())
+                    .price(g.price())
+                    .seatCount(g.seatCount())
+                    .build());
+        }
+        seatGradeRepository.saveAll(grades);
+
+        List<Performance> performances = input.performances().stream()
+                .sorted()
+                .map(eventAt -> Performance.builder().product(product).eventAt(eventAt).build())
+                .toList();
+        performanceRepository.saveAll(performances);
+
+        List<SaleItem> items = new ArrayList<>();
+        for (Performance performance : performances) {
+            for (SeatGrade grade : grades) {
+                items.add(SaleItem.builder()
+                        .product(product)
+                        .performance(performance)
+                        .seatGrade(grade)
+                        .price(grade.getPrice())
+                        .totalQuantity(grade.getSeatCount())
+                        .build());
+            }
+        }
+        saleItemRepository.saveAll(items);
+        return ProductResponse.of(product, ticket, null, grades, performances, items);
+    }
+
+    private ProductResponse saveGoodsStock(Product product, GoodsDetail goods, ProductInput input) {
+        SaleItem item = SaleItem.builder()
+                .product(product)
+                .price(input.price())
+                .totalQuantity(input.quantity())
+                .build();
+        saleItemRepository.save(item);
+        return ProductResponse.of(product, null, goods, List.of(), List.of(), List.of(item));
+    }
+
+    /** 재고가 회차·등급을 참조하므로 재고부터 지운다. */
+    private void deleteStock(Long productId) {
+        saleItemRepository.deleteByProductId(productId);
+        performanceRepository.deleteByProductId(productId);
+        seatGradeRepository.deleteByProductId(productId);
+    }
+
+    // ---------- 조회 ----------
+
+    private List<ProductResponse> toResponses(List<Product> products) {
+        if (products.isEmpty()) {
+            return List.of();
+        }
+        List<Long> ids = products.stream().map(Product::getId).toList();
+        Map<Long, TicketDetail> tickets = ticketDetailRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(TicketDetail::getProductId, Function.identity()));
+        Map<Long, GoodsDetail> goods = goodsDetailRepository.findAllById(ids).stream()
+                .collect(Collectors.toMap(GoodsDetail::getProductId, Function.identity()));
+        Map<Long, List<SeatGrade>> grades = seatGradeRepository.findByProductIdInOrderByIdAsc(ids).stream()
+                .collect(Collectors.groupingBy(g -> g.getProduct().getId()));
+        Map<Long, List<Performance>> performances = performanceRepository
+                .findByProductIdInOrderByEventAtAsc(ids).stream()
+                .collect(Collectors.groupingBy(p -> p.getProduct().getId()));
+        Map<Long, List<SaleItem>> items = saleItemRepository.findByProductIdInOrderByIdAsc(ids).stream()
+                .collect(Collectors.groupingBy(s -> s.getProduct().getId()));
+
+        return products.stream()
+                .map(p -> ProductResponse.of(p, tickets.get(p.getId()), goods.get(p.getId()),
+                        grades.getOrDefault(p.getId(), List.of()),
+                        performances.getOrDefault(p.getId(), List.of()),
+                        items.getOrDefault(p.getId(), List.of())))
+                .toList();
     }
 
     private Product findEditableProduct(Long memberId, Long productId) {
@@ -134,36 +220,99 @@ public class ProductService {
         return product;
     }
 
-    /** 등록과 수정에 같은 규칙을 쓴다. 시간은 서버 시간 기준. */
-    private void validate(ProductType type, int totalQuantity, int maxPerPerson,
-                          LocalDateTime saleStartAt, LocalDateTime saleEndAt,
-                          LocalDateTime eventAt, String venue,
-                          String description, DeliveryType deliveryType) {
-        if (maxPerPerson > totalQuantity) {
-            throw invalid("1인 구매 제한 수량은 판매 수량보다 클 수 없습니다.");
-        }
-        if (!saleStartAt.isAfter(LocalDateTime.now())) {
+    // ---------- 검증 (등록·수정 공통, 서버 시간 기준) ----------
+
+    private void validate(ProductType type, ProductInput in) {
+        if (!in.saleStartAt().isAfter(LocalDateTime.now())) {
             throw invalid("판매 시작 일시는 현재 이후여야 합니다.");
         }
-        if (!saleEndAt.isAfter(saleStartAt)) {
+        if (!in.saleEndAt().isAfter(in.saleStartAt())) {
             throw invalid("판매 종료 일시는 판매 시작 일시 이후여야 합니다.");
         }
+        checkImageUrl(in.imageUrl());
         if (type == ProductType.TICKET) {
-            if (eventAt == null || isBlank(venue)) {
-                throw invalid("티켓은 공연 일시와 장소를 입력해 주세요.");
+            validateTicket(in);
+        } else {
+            validateGoods(in);
+        }
+    }
+
+    private void validateTicket(ProductInput in) {
+        if (isBlank(in.venue())) {
+            throw invalid("티켓은 장소를 입력해 주세요.");
+        }
+        checkImageUrl(in.seatMapUrl());
+
+        List<SeatGradeRequest> grades = in.seatGrades();
+        if (grades == null || grades.isEmpty()) {
+            throw invalid("좌석 등급을 1개 이상 입력해 주세요.");
+        }
+        if (grades.size() > MAX_SEAT_GRADES) {
+            throw invalid("좌석 등급은 " + MAX_SEAT_GRADES + "개까지 등록할 수 있습니다.");
+        }
+        Set<String> names = new HashSet<>();
+        int seatsPerPerformance = 0;
+        for (SeatGradeRequest g : grades) {
+            if (g == null) {
+                throw invalid("좌석 등급 정보를 입력해 주세요.");
             }
-            if (!eventAt.isAfter(saleEndAt)) {
+            if (!names.add(g.name().trim().toLowerCase())) {
+                throw invalid("좌석 등급 이름이 중복되었습니다: " + g.name().trim());
+            }
+            seatsPerPerformance += g.seatCount();
+        }
+
+        List<LocalDateTime> performances = in.performances();
+        if (performances == null || performances.isEmpty()) {
+            throw invalid("공연 회차를 1개 이상 입력해 주세요.");
+        }
+        if (performances.size() > MAX_PERFORMANCES) {
+            throw invalid("공연 회차는 " + MAX_PERFORMANCES + "개까지 등록할 수 있습니다.");
+        }
+        Set<LocalDateTime> seen = new HashSet<>();
+        for (LocalDateTime eventAt : performances) {
+            if (eventAt == null) {
+                throw invalid("공연 일시를 입력해 주세요.");
+            }
+            if (!seen.add(eventAt)) {
+                throw invalid("같은 공연 일시가 두 번 입력되었습니다.");
+            }
+            if (!eventAt.isAfter(in.saleEndAt())) {
                 throw invalid("공연 일시는 판매 종료 일시 이후여야 합니다.");
             }
-        } else {
-            if (isBlank(description) || deliveryType == null) {
-                throw invalid("굿즈는 상품 설명과 수령 방법을 입력해 주세요.");
-            }
+        }
+
+        // 한도는 회차당 적용되므로 한 회차의 전체 좌석 수와 비교한다
+        if (in.maxPerPerson() > seatsPerPerformance) {
+            throw invalid("1인 구매 제한 수량은 회차당 전체 좌석 수보다 클 수 없습니다.");
+        }
+    }
+
+    private void validateGoods(ProductInput in) {
+        if (in.price() == null || in.quantity() == null) {
+            throw invalid("굿즈는 가격과 판매 수량을 입력해 주세요.");
+        }
+        if (isBlank(in.description()) || in.deliveryType() == null) {
+            throw invalid("굿즈는 상품 설명과 수령 방법을 입력해 주세요.");
+        }
+        if (in.maxPerPerson() > in.quantity()) {
+            throw invalid("1인 구매 제한 수량은 판매 수량보다 클 수 없습니다.");
+        }
+    }
+
+    /** 사진은 이 서버에 올린 것만 허용 (외부 주소 차단) */
+    private static void checkImageUrl(String url) {
+        if (!isBlank(url) && !ImageService.isUploadedUrl(url)) {
+            throw invalid("사진은 이 사이트에 올린 사진만 사용할 수 있습니다.");
         }
     }
 
     private static boolean isBlank(String text) {
         return text == null || text.isBlank();
+    }
+
+    private static String blankToNull(String text) {
+        return isBlank(text) ? null : text;
     }
 
     private static CustomException invalid(String message) {

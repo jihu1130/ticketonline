@@ -10,6 +10,9 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /** 모든 컨트롤러의 예외를 { code, message } 형식으로 바꿔 응답한다. */
@@ -39,6 +42,18 @@ public class GlobalExceptionHandler {
     @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class})
     public ResponseEntity<ErrorResponse> handleBadRequest(Exception e) {
         return build(ErrorCode.INVALID_INPUT, ErrorCode.INVALID_INPUT.getMessage());
+    }
+
+    /** 사진 크기 제한(spring.servlet.multipart) 초과 */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponse> handleTooLarge(MaxUploadSizeExceededException e) {
+        return build(ErrorCode.INVALID_INPUT, "사진은 5MB 이하만 올릴 수 있습니다.");
+    }
+
+    /** multipart 요청에 file 항목이 없거나 형식이 잘못된 경우 */
+    @ExceptionHandler({MissingServletRequestPartException.class, MultipartException.class})
+    public ResponseEntity<ErrorResponse> handleBadMultipart(Exception e) {
+        return build(ErrorCode.INVALID_INPUT, "사진 파일을 선택해 주세요.");
     }
 
     @ExceptionHandler(NoResourceFoundException.class)

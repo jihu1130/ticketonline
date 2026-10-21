@@ -39,6 +39,9 @@ out/
 application-secret.yaml
 
 
+### 업로드한 상품 사진 ###
+uploads/
+
 ### 커밋하지 않는 개인 문서 ###
 docs/
 CLAUDE.local.md

@@ -1,7 +1,7 @@
 package io.github.jihu1130.ticketonline.domain.order.entity;
 
 import io.github.jihu1130.ticketonline.domain.member.entity.Member;
-import io.github.jihu1130.ticketonline.domain.product.entity.Product;
+import io.github.jihu1130.ticketonline.domain.product.entity.SaleItem;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -20,7 +20,10 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/** 구매 기록. 한 사람이 여러 번 살 수 있으므로 주문마다 수량을 저장한다. (ERD02 PRODUCT_ORDER) */
+/**
+ * 구매 기록. 한 사람이 여러 번 살 수 있으므로 주문마다 수량을 저장한다. (ERD02 PRODUCT_ORDER)
+ * 구매 대상은 판매 단위(SaleItem): 티켓은 회차 x 등급, 굿즈는 상품.
+ */
 @Entity
 @Table(name = "product_order")
 @Getter
@@ -33,8 +36,8 @@ public class ProductOrder {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "product_id", nullable = false)
-    private Product product;
+    @JoinColumn(name = "sale_item_id", nullable = false)
+    private SaleItem saleItem;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "member_id", nullable = false)
@@ -56,8 +59,8 @@ public class ProductOrder {
     private LocalDateTime orderedAt;
 
     @Builder
-    private ProductOrder(Product product, Member member, int quantity, String address) {
-        this.product = product;
+    private ProductOrder(SaleItem saleItem, Member member, int quantity, String address) {
+        this.saleItem = saleItem;
         this.member = member;
         this.quantity = quantity;
         this.address = address;

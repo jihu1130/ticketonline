@@ -18,6 +18,16 @@ spring:
     show-sql: true
     # 화면은 API를 따로 불러 그리므로 요청이 끝나면 DB 연결을 바로 돌려준다
     open-in-view: false
+  servlet:
+    multipart:
+      # 사진 1장 5MB 제한 (ImageService.MAX_BYTES와 같게)
+      max-file-size: 5MB
+      max-request-size: 6MB
+
+app:
+  upload:
+    # 상품 사진 저장 폴더 (깃에 올리지 않음). 실행 위치 기준 상대 경로
+    dir: ${UPLOAD_DIR:uploads}
 
 jwt:
   # 토큰 서명 비밀키(jwt.secret)는 application-secret.yaml 에만 적는다.

@@ -44,6 +44,8 @@ public class SecurityConfig {
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/error").permitAll()
                         // 화면 파일(static 폴더): 로그인 확인은 화면 안의 API 호출에서 한다
                         .requestMatchers(HttpMethod.GET, "/", "/*.html", "/css/**", "/js/**", "/favicon.ico").permitAll()
+                        // 업로드한 상품 사진은 누구나 볼 수 있다 (올리기는 로그인 필요)
+                        .requestMatchers(HttpMethod.GET, "/uploads/**").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/members/signup", "/api/members/login").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/products", "/api/products/*").permitAll()
                         // 상품 등록, 판매 현황, 구매, 대기열 등 나머지는 로그인한 회원 누구나

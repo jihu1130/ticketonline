@@ -13,14 +13,16 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
-import jakarta.persistence.Version;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-/** 티켓과 한정 물품의 공통 정보와 판매 수량 (ERD01 PRODUCT) */
+/**
+ * 티켓과 굿즈의 공통 정보.
+ * 가격과 재고는 판매 단위(SaleItem)에 있다. 티켓은 회차 x 등급마다, 굿즈는 1개.
+ */
 @Entity
 @Table(name = "product")
 @Getter
@@ -43,18 +45,11 @@ public class Product {
     @Column(nullable = false, length = 100)
     private String title;
 
-    @Column(nullable = false)
-    private int price;
+    /** 대표 사진 (티켓 포스터, 굿즈 사진). 없으면 null */
+    @Column(length = 255)
+    private String imageUrl;
 
-    /** 판매 총 수량 */
-    @Column(nullable = false)
-    private int totalQuantity;
-
-    /** 판매된 수량 (totalQuantity 이하) */
-    @Column(nullable = false)
-    private int soldQuantity;
-
-    /** 1인 구매 제한 수량 */
+    /** 1인 구매 제한 수량. 티켓은 회차당, 굿즈는 상품당 */
     @Column(nullable = false)
     private int maxPerPerson;
 
@@ -64,23 +59,16 @@ public class Product {
     @Column(nullable = false)
     private LocalDateTime saleEndAt;
 
-    /** 낙관적 락(방식 B)용 버전 */
-    @Version
-    @Column(nullable = false)
-    private Long version;
-
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @Builder
-    private Product(Member seller, ProductType type, String title, int price, int totalQuantity,
-                    int maxPerPerson, LocalDateTime saleStartAt, LocalDateTime saleEndAt) {
+    private Product(Member seller, ProductType type, String title, String imageUrl, int maxPerPerson,
+                    LocalDateTime saleStartAt, LocalDateTime saleEndAt) {
         this.seller = seller;
         this.type = type;
         this.title = title;
-        this.price = price;
-        this.totalQuantity = totalQuantity;
-        this.soldQuantity = 0;
+        this.imageUrl = imageUrl;
         this.maxPerPerson = maxPerPerson;
         this.saleStartAt = saleStartAt;
         this.saleEndAt = saleEndAt;
@@ -91,16 +79,10 @@ public class Product {
         this.createdAt = LocalDateTime.now();
     }
 
-    public int getRemainingQuantity() {
-        return totalQuantity - soldQuantity;
-    }
-
-    /** 수정은 판매 시작 전에만 하므로 판매 수량은 건드리지 않는다. */
-    public void update(String title, int price, int totalQuantity, int maxPerPerson,
+    public void update(String title, String imageUrl, int maxPerPerson,
                        LocalDateTime saleStartAt, LocalDateTime saleEndAt) {
         this.title = title;
-        this.price = price;
-        this.totalQuantity = totalQuantity;
+        this.imageUrl = imageUrl;
         this.maxPerPerson = maxPerPerson;
         this.saleStartAt = saleStartAt;
         this.saleEndAt = saleEndAt;

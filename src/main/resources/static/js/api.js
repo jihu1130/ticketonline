@@ -63,6 +63,28 @@ async function api(path, { method = "GET", body } = {}) {
   return data;
 }
 
+/** 사진 업로드 (multipart). 성공하면 "/uploads/..." 주소를 돌려준다. */
+async function uploadImage(file) {
+  const form = new FormData();
+  form.append("file", file);
+  const headers = {};
+  const token = auth.token();
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  let response;
+  try {
+    response = await fetch("/api/images", { method: "POST", headers, body: form });
+  } catch (e) {
+    throw new ApiError(0, "NETWORK_ERROR", "서버에 연결할 수 없습니다.");
+  }
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    if (response.status === 401 && data?.code === "UNAUTHORIZED") auth.clear();
+    throw new ApiError(response.status, data?.code ?? "UNKNOWN", data?.message ?? "사진을 올리지 못했습니다.");
+  }
+  return data.url;
+}
+
 /** 안내 문구를 보여 준다. type: "error" | "success" */
 function showMessage(element, text, type = "error") {
   element.textContent = text;

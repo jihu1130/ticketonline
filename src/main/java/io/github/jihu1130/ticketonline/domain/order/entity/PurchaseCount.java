@@ -20,6 +20,7 @@ import lombok.NoArgsConstructor;
 /**
  * 회원별로 지금까지 산 수량. 구매할 때 이 값과 Product.maxPerPerson을 비교해
  * 1인 구매 제한을 지킨다. (ERD02 PURCHASE_COUNT)
+ * 티켓은 회차마다, 굿즈는 상품마다 한 행 (PurchaseCountId.scopeId 참고)
  */
 @Entity
 @Table(name = "purchase_count")
@@ -47,8 +48,8 @@ public class PurchaseCount {
     @Column(nullable = false)
     private LocalDateTime updatedAt;
 
-    public PurchaseCount(Member member, Product product) {
-        this.id = new PurchaseCountId(member.getId(), product.getId());
+    public PurchaseCount(Member member, Product product, Long scopeId) {
+        this.id = new PurchaseCountId(member.getId(), product.getId(), scopeId);
         this.member = member;
         this.product = product;
         this.boughtQuantity = 0;
