@@ -3,6 +3,7 @@ package io.github.jihu1130.ticketonline.concurrency;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.jihu1130.ticketonline.domain.order.entity.PurchaseCountId;
+import io.github.jihu1130.ticketonline.domain.order.service.PessimisticPurchaseProcessor;
 import io.github.jihu1130.ticketonline.global.exception.ErrorCode;
 import java.util.ArrayList;
 import java.util.List;
@@ -15,6 +16,11 @@ import org.junit.jupiter.api.Test;
  * 8·9단계에서 B·C 방식도 같은 시나리오로 비교한다.
  */
 class PessimisticPurchaseConcurrencyTest extends ConcurrencyTestSupport {
+
+    @Test
+    void usesStrategyA() {
+        assertThat(purchaseProcessor).isInstanceOf(PessimisticPurchaseProcessor.class);
+    }
 
     @Test
     void stock100_buyers1000_eachOne_sellsExactly100() throws InterruptedException {

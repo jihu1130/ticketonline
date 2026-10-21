@@ -3,6 +3,7 @@ package io.github.jihu1130.ticketonline.domain.order.controller;
 import io.github.jihu1130.ticketonline.domain.order.dto.OrderRequest;
 import io.github.jihu1130.ticketonline.domain.order.dto.OrderResponse;
 import io.github.jihu1130.ticketonline.domain.order.service.OrderService;
+import io.github.jihu1130.ticketonline.domain.order.service.PurchaseFacade;
 import io.github.jihu1130.ticketonline.global.security.LoginMember;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class OrderController {
 
     private final OrderService orderService;
+    private final PurchaseFacade purchaseFacade;
 
     @Operation(summary = "구매",
             description = "결제 없이 바로 구매 확정. 티켓은 saleItemId(회차 x 등급) 필수, 택배 굿즈는 address 필수")
@@ -32,7 +34,7 @@ public class OrderController {
     public OrderResponse purchase(@AuthenticationPrincipal LoginMember loginMember,
                                   @PathVariable Long productId,
                                   @Valid @RequestBody OrderRequest request) {
-        return orderService.purchase(loginMember.id(), productId, request);
+        return purchaseFacade.purchase(loginMember.id(), productId, request);
     }
 
     @Operation(summary = "내 구매 내역", description = "최근 구매 순")

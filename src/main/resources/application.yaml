@@ -28,6 +28,10 @@ app:
   upload:
     # 상품 사진 저장 폴더 (깃에 올리지 않음). 실행 위치 기준 상대 경로
     dir: ${UPLOAD_DIR:uploads}
+  purchase:
+    # 구매 동시성 처리 방식 (성능 비교용)
+    # pessimistic: A 비관적 락 (SELECT ... FOR UPDATE) / optimistic: B 낙관적 락 (@Version, 최대 3번 시도)
+    strategy: ${PURCHASE_STRATEGY:pessimistic}
 
 jwt:
   # 토큰 서명 비밀키(jwt.secret)는 application-secret.yaml 에만 적는다.

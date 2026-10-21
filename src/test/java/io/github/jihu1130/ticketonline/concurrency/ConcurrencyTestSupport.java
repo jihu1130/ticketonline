@@ -3,7 +3,8 @@ package io.github.jihu1130.ticketonline.concurrency;
 import io.github.jihu1130.ticketonline.domain.member.entity.Member;
 import io.github.jihu1130.ticketonline.domain.member.repository.MemberRepository;
 import io.github.jihu1130.ticketonline.domain.order.dto.OrderRequest;
-import io.github.jihu1130.ticketonline.domain.order.service.OrderService;
+import io.github.jihu1130.ticketonline.domain.order.service.PurchaseFacade;
+import io.github.jihu1130.ticketonline.domain.order.service.PurchaseProcessor;
 import io.github.jihu1130.ticketonline.domain.product.entity.DeliveryType;
 import io.github.jihu1130.ticketonline.domain.product.entity.GoodsDetail;
 import io.github.jihu1130.ticketonline.domain.product.entity.Performance;
@@ -54,7 +55,9 @@ public abstract class ConcurrencyTestSupport {
     /** 동시에 요청을 보내는 스레드 수 (DB 연결은 Hikari 기본 10개를 나눠 쓴다) */
     protected static final int THREADS = 32;
 
-    @Autowired protected OrderService orderService;
+    /** 실제 API와 같은 입구 (방식 B의 다시 시도 포함) */
+    @Autowired protected PurchaseFacade purchaseFacade;
+    @Autowired protected PurchaseProcessor purchaseProcessor;
     @Autowired protected JdbcTemplate jdbc;
     @Autowired private MemberRepository memberRepository;
     @Autowired private ProductRepository productRepository;
@@ -148,7 +151,7 @@ public abstract class ConcurrencyTestSupport {
                 ready.countDown();
                 try {
                     start.await();
-                    orderService.purchase(p.memberId(), p.productId(), new OrderRequest(p.saleItemId(), p.quantity(), null));
+                    purchaseFacade.purchase(p.memberId(), p.productId(), new OrderRequest(p.saleItemId(), p.quantity(), null));
                     successCount.incrementAndGet();
                     successQuantity.addAndGet(p.quantity());
                 } catch (CustomException e) {
@@ -185,8 +188,25 @@ public abstract class ConcurrencyTestSupport {
         }
 
         String summary() {
-            return String.format("[동시성] %s | 요청 %d건, 성공 %d건(수량 %d), 실패 %s, 예상 밖 예외 %d건, %dms",
-                    name, requests, successCount, successQuantity, failures, unexpected.size(), elapsedMs);
+            return String.format("[동시성] %s | 요청 %d건, 성공 %d건(수량 %d), 실패 %s, 예상 밖 예외 %d건%s, %dms",
+                    name, requests, successCount, successQuantity, failures, unexpected.size(),
+                    unexpected.isEmpty() ? "" : " " + unexpectedTypes(), elapsedMs);
+        }
+
+        /** 예상 밖 예외를 종류별로 센다. 예) {CannotAcquireLockException=12} */
+        private Map<String, Long> unexpectedTypes() {
+            return unexpected.stream().collect(java.util.stream.Collectors.groupingBy(
+                    e -> e.getClass().getSimpleName() + (e.getCause() == null ? ""
+                            : "(" + rootCause(e).getClass().getSimpleName() + ": " + rootCause(e).getMessage() + ")"),
+                    java.util.TreeMap::new, java.util.stream.Collectors.counting()));
+        }
+
+        private static Throwable rootCause(Throwable e) {
+            Throwable cause = e;
+            while (cause.getCause() != null && cause.getCause() != cause) {
+                cause = cause.getCause();
+            }
+            return cause;
         }
     }
 

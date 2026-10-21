@@ -12,6 +12,7 @@ import jakarta.persistence.MapsId;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -47,6 +48,14 @@ public class PurchaseCount {
 
     @Column(nullable = false)
     private LocalDateTime updatedAt;
+
+    /**
+     * 낙관적 락(방식 B)용 버전. 방식 A는 행을 잠그므로 충돌하지 않는다.
+     * 기존 행에도 0이 들어가도록 DB 기본값을 둔다.
+     */
+    @Version
+    @Column(nullable = false, columnDefinition = "bigint default 0")
+    private Long version;
 
     public PurchaseCount(Member member, Product product, Long scopeId) {
         this.id = new PurchaseCountId(member.getId(), product.getId(), scopeId);

@@ -11,6 +11,7 @@ import io.github.jihu1130.ticketonline.domain.product.repository.SaleItemReposit
 import io.github.jihu1130.ticketonline.global.exception.CustomException;
 import io.github.jihu1130.ticketonline.global.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 잠그는 순서를 항상 같게 해 두 요청이 서로를 기다리는 교착(데드락)을 막는다.
  */
 @Component
+@ConditionalOnProperty(name = "app.purchase.strategy", havingValue = "pessimistic", matchIfMissing = true)
 @RequiredArgsConstructor
 public class PessimisticPurchaseProcessor implements PurchaseProcessor {
 
