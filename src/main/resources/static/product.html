@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>상품 상세 - 티켓온라인</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <a class="logo" href="/"><img class="logo-img" src="/images/logo.svg" alt="TicketOnline 티켓온라인"></a>
+      <nav class="gnb">
+        <a href="/?type=TICKET">티켓</a>
+        <a href="/?type=GOODS">굿즈</a>
+      </nav>
+      <nav class="nav"></nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <div id="product-detail"><p class="loading">상품 정보를 불러오는 중입니다...</p></div>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/product-common.js"></script>
+  <script src="/js/product.js"></script>
+</body>
+</html>

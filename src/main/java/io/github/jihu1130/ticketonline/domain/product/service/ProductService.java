@@ -4,12 +4,14 @@ import io.github.jihu1130.ticketonline.domain.member.repository.MemberRepository
 import io.github.jihu1130.ticketonline.domain.product.dto.ProductCreateRequest;
 import io.github.jihu1130.ticketonline.domain.product.dto.ProductInput;
 import io.github.jihu1130.ticketonline.domain.product.dto.ProductResponse;
+import io.github.jihu1130.ticketonline.domain.product.dto.ProductSummaryResponse;
 import io.github.jihu1130.ticketonline.domain.product.dto.ProductUpdateRequest;
 import io.github.jihu1130.ticketonline.domain.product.dto.SeatGradeRequest;
 import io.github.jihu1130.ticketonline.domain.product.entity.GoodsDetail;
 import io.github.jihu1130.ticketonline.domain.product.entity.Performance;
 import io.github.jihu1130.ticketonline.domain.product.entity.Product;
 import io.github.jihu1130.ticketonline.domain.product.entity.ProductImage;
+import io.github.jihu1130.ticketonline.domain.product.entity.ProductStatus;
 import io.github.jihu1130.ticketonline.domain.product.entity.ProductType;
 import io.github.jihu1130.ticketonline.domain.product.entity.SaleItem;
 import io.github.jihu1130.ticketonline.domain.product.entity.SeatGrade;
@@ -26,6 +28,7 @@ import io.github.jihu1130.ticketonline.global.exception.ErrorCode;
 import io.github.jihu1130.ticketonline.global.upload.ImageService;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +40,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * F-02 상품 등록 / 내 판매 상품 / 수정 / 삭제
+ * F-02 상품 등록 / 내 판매 상품 / 수정 / 삭제, F-03 상품 목록 / 상세
  * 티켓은 등급과 회차를 받아 회차 x 등급 조합마다 판매 단위(SaleItem)를 만든다.
  */
 @Service
@@ -51,6 +54,21 @@ public class ProductService {
     static final int MAX_EXTRA_IMAGES = 10;
     /** 예매 마감 시간을 보내지 않았을 때: 공연 시작 1시간 전 마감 */
     static final int DEFAULT_CLOSE_BEFORE_HOURS = 1;
+
+    /** 상품 목록에서 상태를 보여 주는 순서 */
+    private static final List<ProductStatus> LIST_STATUS_ORDER = List.of(
+            ProductStatus.ON_SALE, ProductStatus.UPCOMING, ProductStatus.SOLD_OUT, ProductStatus.ENDED);
+
+    /**
+     * 상품 목록 순서: 상태 순서 -> 같은 상태 안에서는 판매 시작 시각이 지금과 가까운 순
+     * (판매 예정은 곧 열리는 순, 나머지는 최근에 판매를 시작한 순) -> 최근 등록 순
+     */
+    private static final Comparator<ProductSummaryResponse> LIST_ORDER = Comparator
+            .comparingInt((ProductSummaryResponse p) -> LIST_STATUS_ORDER.indexOf(p.status()))
+            .thenComparing((a, b) -> a.status() == ProductStatus.UPCOMING
+                    ? a.saleStartAt().compareTo(b.saleStartAt())
+                    : b.saleStartAt().compareTo(a.saleStartAt()))
+            .thenComparing(ProductSummaryResponse::id, Comparator.nullsLast(Comparator.reverseOrder()));
 
     private final ProductRepository productRepository;
     private final TicketDetailRepository ticketDetailRepository;
@@ -100,6 +118,27 @@ public class ProductService {
     /** 내가 등록한 상품 (최근 등록 순) */
     public List<ProductResponse> getMyProducts(Long sellerId) {
         return toResponses(productRepository.findBySellerIdOrderByCreatedAtDesc(sellerId));
+    }
+
+    /**
+     * F-03 상품 목록 (로그인 없이 조회). type이 null이면 전체.
+     * 판매 중 -> 판매 예정 -> 매진 -> 판매 종료 순서로 보여 준다.
+     */
+    public List<ProductSummaryResponse> getProducts(ProductType type) {
+        List<Product> products = type == null
+                ? productRepository.findAll()
+                : productRepository.findByType(type);
+        return toResponses(products).stream()
+                .map(ProductSummaryResponse::from)
+                .sorted(LIST_ORDER)
+                .toList();
+    }
+
+    /** F-03 상품 상세 (로그인 없이 조회). 회차·등급별 남은 수량과 판매 상태 포함 */
+    public ProductResponse getProduct(Long productId) {
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new CustomException(ErrorCode.PRODUCT_NOT_FOUND));
+        return toResponses(List.of(product)).get(0);
     }
 
     /** 판매 시작 전에, 등록한 본인만 수정할 수 있다. 등급·회차·재고는 새로 만든다. */
@@ -173,7 +212,8 @@ public class ProductService {
             }
         }
         saleItemRepository.saveAll(items);
-        return ProductResponse.of(product, ticket, null, grades, performances, items, List.of());
+        return ProductResponse.of(product, ticket, null, grades, performances, items, List.of(),
+                LocalDateTime.now());
     }
 
     private ProductResponse saveGoodsStock(Product product, GoodsDetail goods, ProductInput input,
@@ -184,7 +224,8 @@ public class ProductService {
                 .totalQuantity(input.quantity())
                 .build();
         saleItemRepository.save(item);
-        return ProductResponse.of(product, null, goods, List.of(), List.of(), List.of(item), images);
+        return ProductResponse.of(product, null, goods, List.of(), List.of(), List.of(item), images,
+                LocalDateTime.now());
     }
 
     /** 부가 사진을 보낸 순서대로 저장한다. */
@@ -230,12 +271,14 @@ public class ProductService {
                 .findByProductIdInOrderBySortOrderAsc(ids).stream()
                 .collect(Collectors.groupingBy(i -> i.getProduct().getId()));
 
+        LocalDateTime now = LocalDateTime.now();
         return products.stream()
                 .map(p -> ProductResponse.of(p, tickets.get(p.getId()), goods.get(p.getId()),
                         grades.getOrDefault(p.getId(), List.of()),
                         performances.getOrDefault(p.getId(), List.of()),
                         items.getOrDefault(p.getId(), List.of()),
-                        images.getOrDefault(p.getId(), List.of())))
+                        images.getOrDefault(p.getId(), List.of()),
+                        now))
                 .toList();
     }
 

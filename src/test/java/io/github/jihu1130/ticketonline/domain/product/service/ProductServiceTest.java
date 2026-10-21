@@ -13,13 +13,18 @@ import io.github.jihu1130.ticketonline.domain.member.entity.Member;
 import io.github.jihu1130.ticketonline.domain.member.repository.MemberRepository;
 import io.github.jihu1130.ticketonline.domain.product.dto.ProductCreateRequest;
 import io.github.jihu1130.ticketonline.domain.product.dto.ProductResponse;
+import io.github.jihu1130.ticketonline.domain.product.dto.ProductSummaryResponse;
 import io.github.jihu1130.ticketonline.domain.product.dto.ProductUpdateRequest;
 import io.github.jihu1130.ticketonline.domain.product.dto.SeatGradeRequest;
 import io.github.jihu1130.ticketonline.domain.product.entity.DeliveryType;
 import io.github.jihu1130.ticketonline.domain.product.entity.GoodsDetail;
+import io.github.jihu1130.ticketonline.domain.product.entity.Performance;
+import io.github.jihu1130.ticketonline.domain.product.entity.PerformanceStatus;
 import io.github.jihu1130.ticketonline.domain.product.entity.Product;
+import io.github.jihu1130.ticketonline.domain.product.entity.ProductStatus;
 import io.github.jihu1130.ticketonline.domain.product.entity.ProductType;
 import io.github.jihu1130.ticketonline.domain.product.entity.SaleItem;
+import io.github.jihu1130.ticketonline.domain.product.entity.SeatGrade;
 import io.github.jihu1130.ticketonline.domain.product.entity.TicketDetail;
 import io.github.jihu1130.ticketonline.domain.product.repository.GoodsDetailRepository;
 import io.github.jihu1130.ticketonline.domain.product.repository.PerformanceRepository;
@@ -432,7 +437,134 @@ class ProductServiceTest {
         assertThat(productService.getMyProducts(SELLER_ID)).isEmpty();
     }
 
+    // ---------- 상품 목록 / 상세 (F-03) ----------
+
+    @Test
+    void getProducts_ordersByStatusThenSaleStart() {
+        LocalDateTime now = LocalDateTime.now();
+        Product ended = product(1L, ProductType.GOODS, now.minusDays(3), now.minusDays(1));
+        Product onSaleRecent = product(2L, ProductType.GOODS, now.minusHours(2), now.plusDays(1));
+        Product upcomingLater = product(3L, ProductType.GOODS, now.plusDays(2), now.plusDays(3));
+        Product soldOut = product(4L, ProductType.GOODS, now.minusHours(1), now.plusDays(1));
+        Product onSaleOlder = product(5L, ProductType.GOODS, now.minusHours(5), now.plusDays(1));
+        Product upcomingSoon = product(6L, ProductType.GOODS, now.plusDays(1), now.plusDays(3));
+        List<Product> products = List.of(ended, onSaleRecent, upcomingLater, soldOut, onSaleOlder, upcomingSoon);
+        List<SaleItem> items = new ArrayList<>();
+        for (Product p : products) {
+            items.add(SaleItem.builder().product(p).price(1000).totalQuantity(10).build());
+        }
+        ReflectionTestUtils.setField(items.get(3), "soldQuantity", 10); // soldOut 상품은 다 팔림
+        given(productRepository.findAll()).willReturn(products);
+        given(saleItemRepository.findByProductIdInOrderByIdAsc(any())).willReturn(items);
+
+        List<ProductSummaryResponse> list = productService.getProducts(null);
+
+        // 판매 중(최근 시작 순) -> 판매 예정(곧 열리는 순) -> 매진 -> 판매 종료
+        assertThat(list).extracting(ProductSummaryResponse::id).containsExactly(2L, 5L, 6L, 3L, 4L, 1L);
+        assertThat(list).extracting(ProductSummaryResponse::status).containsExactly(
+                ProductStatus.ON_SALE, ProductStatus.ON_SALE, ProductStatus.UPCOMING, ProductStatus.UPCOMING,
+                ProductStatus.SOLD_OUT, ProductStatus.ENDED);
+    }
+
+    @Test
+    void getProducts_filtersByType() {
+        given(productRepository.findByType(ProductType.TICKET)).willReturn(List.of());
+
+        assertThat(productService.getProducts(ProductType.TICKET)).isEmpty();
+        verify(productRepository).findByType(ProductType.TICKET);
+        verify(productRepository, never()).findAll();
+    }
+
+    @Test
+    void getProducts_ticketSummaryHasMinPriceAndEventRange() {
+        LocalDateTime now = LocalDateTime.now();
+        Product ticket = product(PRODUCT_ID, ProductType.TICKET, now.minusDays(1), now.plusDays(10));
+        SeatGrade vip = grade(ticket, "VIP", 150000);
+        SeatGrade r = grade(ticket, "R석", 99000);
+        Performance first = performance(ticket, now.plusDays(3));
+        Performance last = performance(ticket, now.plusDays(5));
+        stubTicket(ticket, List.of(vip, r), List.of(first, last), List.of(
+                item(ticket, first, vip), item(ticket, first, r), item(ticket, last, vip), item(ticket, last, r)));
+        given(productRepository.findAll()).willReturn(List.of(ticket));
+
+        ProductSummaryResponse summary = productService.getProducts(null).get(0);
+
+        assertThat(summary.minPrice()).isEqualTo(99000);
+        assertThat(summary.firstEventAt()).isEqualTo(first.getEventAt());
+        assertThat(summary.lastEventAt()).isEqualTo(last.getEventAt());
+        assertThat(summary.venue()).isEqualTo("올림픽홀");
+        assertThat(summary.status()).isEqualTo(ProductStatus.ON_SALE);
+    }
+
+    @Test
+    void getProduct_showsStatusOfEachPerformance() {
+        LocalDateTime now = LocalDateTime.now();
+        Product ticket = product(PRODUCT_ID, ProductType.TICKET, now.minusDays(1), now.plusDays(10));
+        SeatGrade vip = grade(ticket, "VIP", 150000);
+        Performance closed = performance(ticket, now.plusMinutes(30)); // 1시간 전 마감 -> 이미 마감
+        Performance open = performance(ticket, now.plusHours(3));
+        Performance soldOut = performance(ticket, now.plusDays(2));
+        SaleItem soldOutItem = item(ticket, soldOut, vip);
+        ReflectionTestUtils.setField(soldOutItem, "soldQuantity", soldOutItem.getTotalQuantity());
+        stubTicket(ticket, List.of(vip), List.of(closed, open, soldOut),
+                List.of(item(ticket, closed, vip), item(ticket, open, vip), soldOutItem));
+        given(productRepository.findById(PRODUCT_ID)).willReturn(Optional.of(ticket));
+
+        ProductResponse response = productService.getProduct(PRODUCT_ID);
+
+        assertThat(response.performances()).extracting(ProductResponse.PerformanceResponse::status)
+                .containsExactly(PerformanceStatus.CLOSED, PerformanceStatus.OPEN, PerformanceStatus.SOLD_OUT);
+        assertThat(response.performances().get(0).bookingCloseAt()).isEqualTo(closed.getEventAt().minusHours(1));
+        // 예매 중인 회차가 있으므로 판매 중
+        assertThat(response.status()).isEqualTo(ProductStatus.ON_SALE);
+    }
+
+    @Test
+    void getProduct_rejectsUnknownProduct() {
+        given(productRepository.findById(PRODUCT_ID)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> productService.getProduct(PRODUCT_ID))
+                .extracting("errorCode").isEqualTo(ErrorCode.PRODUCT_NOT_FOUND);
+    }
+
     // ---------- 도우미 ----------
+
+    private Product product(Long id, ProductType type, LocalDateTime saleStart, LocalDateTime saleEnd) {
+        Product product = Product.builder()
+                .seller(seller)
+                .type(type)
+                .title("상품 " + id)
+                .maxPerPerson(1)
+                .saleStartAt(saleStart)
+                .saleEndAt(saleEnd)
+                .build();
+        ReflectionTestUtils.setField(product, "id", id);
+        return product;
+    }
+
+    private static SeatGrade grade(Product product, String name, int price) {
+        return SeatGrade.builder().product(product).name(name).price(price).seatCount(10).build();
+    }
+
+    private static Performance performance(Product product, LocalDateTime eventAt) {
+        return Performance.builder().product(product).eventAt(eventAt).build();
+    }
+
+    private static SaleItem item(Product product, Performance performance, SeatGrade grade) {
+        return SaleItem.builder().product(product).performance(performance).seatGrade(grade)
+                .price(grade.getPrice()).totalQuantity(grade.getSeatCount()).build();
+    }
+
+    /** 티켓 상세(올림픽홀, 1시간 전 마감)·등급·회차·재고 조회 결과를 정해 둔다 */
+    private void stubTicket(Product ticket, List<SeatGrade> grades, List<Performance> performances,
+                            List<SaleItem> items) {
+        TicketDetail detail = TicketDetail.builder().product(ticket).venue("올림픽홀").closeBeforeHours(1).build();
+        ReflectionTestUtils.setField(detail, "productId", ticket.getId());
+        given(ticketDetailRepository.findAllById(any())).willReturn(List.of(detail));
+        given(seatGradeRepository.findByProductIdInOrderByIdAsc(any())).willReturn(grades);
+        given(performanceRepository.findByProductIdInOrderByEventAtAsc(any())).willReturn(performances);
+        given(saleItemRepository.findByProductIdInOrderByIdAsc(any())).willReturn(items);
+    }
 
     private void assertInvalid(ProductCreateRequest request, String messagePart) {
         assertThatThrownBy(() -> productService.create(SELLER_ID, request))

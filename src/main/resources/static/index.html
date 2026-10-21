@@ -26,32 +26,16 @@
       <p>티켓과 한정 굿즈를 정해진 수량만큼만, 누구에게나 공정하게.</p>
     </section>
 
+    <!-- 종류 선택은 상단 메뉴(/?type=TICKET, /?type=GOODS)로 한다. 없으면 전체 -->
     <div class="section-head">
-      <h2 id="list-title">티켓 오픈</h2>
-      <div class="tabs">
-        <button class="tab active" data-type="TICKET">티켓</button>
-        <button class="tab" data-type="GOODS">굿즈</button>
-      </div>
+      <h2 id="list-title">전체 상품</h2>
     </div>
 
-    <!-- 상품 목록은 5단계(F-03 상품 조회)에서 .product-grid 로 연결한다 -->
-    <div class="empty" id="product-list">아직 등록된 상품이 없습니다.</div>
+    <div class="loading" id="product-list">상품을 불러오는 중입니다...</div>
   </main>
 
   <script src="/js/api.js"></script>
-  <script>
-    // 탭 선택 (상단 메뉴의 ?type= 값도 반영)
-    const TITLES = { TICKET: "티켓 오픈", GOODS: "한정 굿즈" };
-    function selectTab(type) {
-      document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.type === type));
-      document.querySelectorAll(".gnb a").forEach(a => a.classList.toggle("active", a.href.endsWith("type=" + type)));
-      document.getElementById("list-title").textContent = TITLES[type];
-    }
-    document.querySelectorAll(".tab").forEach(tab => {
-      tab.addEventListener("click", () => selectTab(tab.dataset.type));
-    });
-    const startType = new URLSearchParams(location.search).get("type");
-    selectTab(TITLES[startType] ? startType : "TICKET");
-  </script>
+  <script src="/js/product-common.js"></script>
+  <script src="/js/index.js"></script>
 </body>
 </html>
