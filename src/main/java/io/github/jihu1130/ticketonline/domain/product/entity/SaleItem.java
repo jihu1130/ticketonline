@@ -74,4 +74,15 @@ public class SaleItem {
     public int getRemainingQuantity() {
         return totalQuantity - soldQuantity;
     }
+
+    /**
+     * 판매 수량을 늘린다. 남은 수량 확인은 호출하는 쪽에서 먼저 하고,
+     * 여기서는 초과 판매가 절대 저장되지 않도록 한 번 더 막는다.
+     */
+    public void sell(int quantity) {
+        if (quantity <= 0 || quantity > getRemainingQuantity()) {
+            throw new IllegalStateException("남은 수량보다 많이 팔 수 없습니다: " + quantity);
+        }
+        this.soldQuantity += quantity;
+    }
 }

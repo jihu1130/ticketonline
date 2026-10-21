@@ -47,6 +47,10 @@ public class ProductOrder {
     @Column(nullable = false)
     private int quantity;
 
+    /** 구매 당시 1개 가격 (주문 금액 = unitPrice x quantity) */
+    @Column(nullable = false)
+    private int unitPrice;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private OrderStatus status;
@@ -58,13 +62,19 @@ public class ProductOrder {
     @Column(nullable = false, updatable = false)
     private LocalDateTime orderedAt;
 
+    /** 결제 기능이 없어 바로 구매 확정(SUCCESS)으로 만든다. */
     @Builder
     private ProductOrder(SaleItem saleItem, Member member, int quantity, String address) {
         this.saleItem = saleItem;
         this.member = member;
         this.quantity = quantity;
+        this.unitPrice = saleItem.getPrice();
         this.address = address;
         this.status = OrderStatus.SUCCESS;
+    }
+
+    public int getTotalPrice() {
+        return unitPrice * quantity;
     }
 
     @PrePersist

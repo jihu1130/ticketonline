@@ -42,6 +42,15 @@
     const form = document.getElementById("login-form");
     const message = document.getElementById("message");
 
+    /**
+     * 로그인 후 돌아갈 곳 (?redirect=/product.html?id=7).
+     * 다른 사이트로 보내는 주소("//evil.com", "https://...")는 막고 우리 사이트 경로만 허용한다.
+     */
+    function redirectTarget() {
+      const target = new URLSearchParams(location.search).get("redirect");
+      return target && target.startsWith("/") && !target.startsWith("//") && !target.startsWith("/\\") ? target : "/";
+    }
+
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       const button = form.querySelector("button[type=submit]");
@@ -52,7 +61,7 @@
           body: { email: form.email.value.trim(), password: form.password.value },
         });
         auth.save(result);
-        location.href = "/";
+        location.href = redirectTarget();
       } catch (e) {
         showMessage(message, e.message);
         button.disabled = false;

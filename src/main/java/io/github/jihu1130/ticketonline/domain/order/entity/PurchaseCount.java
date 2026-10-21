@@ -55,6 +55,16 @@ public class PurchaseCount {
         this.boughtQuantity = 0;
     }
 
+    /** 1인 한도 안에서 몇 개 더 살 수 있는지 */
+    public int remainingAllowance(int maxPerPerson) {
+        return Math.max(0, maxPerPerson - boughtQuantity);
+    }
+
+    /** 구매한 수량을 더한다. 한도 확인은 호출하는 쪽(잠금을 잡은 상태)에서 먼저 한다. */
+    public void add(int quantity) {
+        this.boughtQuantity += quantity;
+    }
+
     @PrePersist
     @PreUpdate
     private void onSave() {

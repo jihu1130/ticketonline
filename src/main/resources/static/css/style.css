@@ -398,6 +398,27 @@ form > .hint { margin: 0 0 18px; }
 .seat-map { display: block; max-width: 100%; border: 1px solid var(--line); border-radius: 10px; }
 .description { margin: 0; font-size: 15px; line-height: 1.8; color: var(--sub); white-space: pre-wrap; word-break: break-word; }
 
+/* ── 구매 (상품 상세) ── */
+.buy-form .field { margin-bottom: 14px; }
+.buy-form .field label { margin-bottom: 6px; font-size: 13px; }
+.buy-total { display: flex; align-items: baseline; justify-content: space-between; margin: 4px 0 16px; padding-top: 14px; font-size: 14px; color: var(--sub); border-top: 1px dashed var(--line); }
+.buy-total strong { font-size: 22px; font-weight: 800; color: var(--navy); }
+.buy-form .message a { margin-left: 6px; font-weight: 700; color: var(--primary); }
+
+/* ── 구매 내역 ── */
+.order-list { display: flex; flex-direction: column; gap: 12px; }
+.order-item { display: flex; align-items: center; gap: 18px; padding: 18px 22px; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); }
+.order-thumb { display: block; width: 72px; height: 96px; object-fit: cover; border-radius: 10px; }
+.order-body { flex: 1; min-width: 0; }
+.order-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.order-status { font-size: 12px; font-weight: 800; color: var(--primary); }
+.order-status.canceled { color: var(--muted); }
+.order-title { display: block; margin-bottom: 4px; font-size: 16px; font-weight: 800; color: var(--navy); text-decoration: none; }
+.order-title:hover { color: var(--primary); }
+.order-meta { margin: 2px 0; font-size: 13px; color: var(--sub); }
+.order-meta.muted { color: var(--muted); }
+.order-price { flex: none; font-size: 18px; font-weight: 800; color: var(--navy); }
+
 /* ── 화면이 좁을 때 ── */
 @media (max-width: 860px) {
   .seller-layout { grid-template-columns: 1fr; }
@@ -419,4 +440,6 @@ form > .hint { margin: 0 0 18px; }
   .detail-top, .detail-section { padding: 20px; }
   .detail-title { font-size: 22px; }
   .performance-head .close-at { margin-left: 0; width: 100%; }
+  .order-item { flex-wrap: wrap; padding: 16px; }
+  .order-price { width: 100%; text-align: right; }
 }
