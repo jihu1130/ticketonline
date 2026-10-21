@@ -50,8 +50,12 @@ public record ProductUpdateRequest(
         @Max(value = 1_000_000, message = "판매 수량은 1,000,000개 이하로 입력해 주세요.")
         Integer quantity,
 
+        // 굿즈는 필수, 티켓은 공연 소개(선택)
         @Size(max = 2000, message = "상품 설명은 2000자 이하로 입력해 주세요.")
         String description,
-        DeliveryType deliveryType
+        DeliveryType deliveryType,
+
+        // 부가 사진 주소 (굿즈만, 최대 10장). 보낸 목록으로 통째로 바꾼다
+        List<String> images
 ) implements ProductInput {
 }

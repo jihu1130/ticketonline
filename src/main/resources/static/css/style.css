@@ -290,6 +290,27 @@ form > .hint { margin: 0 0 18px; }
 .image-picker { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px; border: 1px dashed #d6d9df; border-radius: 10px; }
 .image-picker input[type=file] { flex: 1; min-width: 0; padding: 4px; border: none; font-size: 13px; }
 .image-preview { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; }
+.extra-images { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; margin-bottom: 8px; }
+.extra-images:empty { display: none; }
+.extra-item { position: relative; aspect-ratio: 1; }
+.extra-item img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
+.extra-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  font-size: 15px;
+  line-height: 22px;
+  color: #fff;
+  background: rgba(17, 19, 24, .65);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.extra-remove:hover { background: var(--error); }
+.image-picker input[type=file]:disabled { opacity: .5; }
 
 .product-item { display: flex; gap: 16px; padding: 18px 0; border-bottom: 1px solid var(--line); }
 .product-item:first-child { padding-top: 0; }

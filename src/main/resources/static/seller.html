@@ -65,6 +65,10 @@
           <input id="maxPerPerson" type="number" min="1" required>
           <p class="hint" id="limit-hint">한 사람이 한 회차에서 살 수 있는 매수 (등급 합산)</p>
         </div>
+        <div class="field">
+          <label for="description" id="description-label">공연 소개 (선택)</label>
+          <textarea id="description" rows="4" maxlength="2000"></textarea>
+        </div>
 
         <!-- 티켓 -->
         <div id="ticket-fields">
@@ -114,8 +118,12 @@
             </div>
           </div>
           <div class="field">
-            <label for="description">상품 설명</label>
-            <textarea id="description" rows="4" maxlength="2000"></textarea>
+            <label for="extra-file">부가 사진 (<span id="extra-count">0</span>/10)</label>
+            <div class="extra-images" id="extra-images"></div>
+            <div class="image-picker">
+              <input id="extra-file" type="file" accept="image/jpeg,image/png,image/webp" multiple>
+            </div>
+            <p class="hint">여러 장을 한 번에 고를 수 있습니다. 올린 순서대로 보여 줍니다. (선택)</p>
           </div>
           <div class="field">
             <label for="deliveryType">수령 방법</label>

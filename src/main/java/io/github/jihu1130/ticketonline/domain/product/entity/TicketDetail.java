@@ -41,17 +41,24 @@ public class TicketDetail {
     @Column(nullable = false)
     private int closeBeforeHours;
 
+    /** 공연 소개 (선택). 없으면 null */
+    @Column(columnDefinition = "TEXT")
+    private String description;
+
     @Builder
-    private TicketDetail(Product product, String venue, String seatMapUrl, int closeBeforeHours) {
+    private TicketDetail(Product product, String venue, String seatMapUrl, int closeBeforeHours,
+                         String description) {
         this.product = product;
         this.venue = venue;
         this.seatMapUrl = seatMapUrl;
         this.closeBeforeHours = closeBeforeHours;
+        this.description = description;
     }
 
-    public void update(String venue, String seatMapUrl, int closeBeforeHours) {
+    public void update(String venue, String seatMapUrl, int closeBeforeHours, String description) {
         this.venue = venue;
         this.seatMapUrl = seatMapUrl;
         this.closeBeforeHours = closeBeforeHours;
+        this.description = description;
     }
 }

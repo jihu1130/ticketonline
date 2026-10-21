@@ -13,10 +13,12 @@ const TYPE_NAME = { TICKET: "티켓", GOODS: "굿즈" };
 const DELIVERY_NAME = { PARCEL: "택배", PICKUP: "현장 수령" };
 const MAX_GRADES = 10;
 const MAX_PERFORMANCES = 20;
+const MAX_EXTRA_IMAGES = 10;
 
 let products = [];
 let editingId = null; // 수정 중인 상품 id (null이면 새로 등록)
-const images = { imageUrl: null, seatMapUrl: null }; // 업로드한 사진 주소
+const images = { imageUrl: null, seatMapUrl: null }; // 업로드한 사진 주소 (한 장짜리)
+let extraImages = []; // 굿즈 부가 사진 주소 (보여 줄 순서대로)
 
 if (!auth.token()) {
   location.href = "/login.html";
@@ -34,6 +36,7 @@ function toggleTypeFields() {
   document.getElementById("ticket-fields").hidden = !isTicket;
   document.getElementById("goods-fields").hidden = isTicket;
   document.getElementById("image-label").textContent = isTicket ? "대표 사진 (포스터)" : "상품 사진";
+  document.getElementById("description-label").textContent = isTicket ? "공연 소개 (선택)" : "상품 설명";
   document.getElementById("limit-hint").textContent = isTicket
     ? "한 사람이 한 회차에서 살 수 있는 매수 (등급 합산)"
     : "한 사람이 살 수 있는 개수";
@@ -87,7 +90,7 @@ function setImage(picker, url) {
   if (!url) picker.querySelector("input[type=file]").value = "";
 }
 
-document.querySelectorAll(".image-picker").forEach((picker) => {
+document.querySelectorAll(".image-picker[data-target]").forEach((picker) => {
   picker.querySelector("input[type=file]").addEventListener("change", async (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -101,6 +104,49 @@ document.querySelectorAll(".image-picker").forEach((picker) => {
     }
   });
   picker.querySelector("[data-action=clear-image]").addEventListener("click", () => setImage(picker, null));
+});
+
+// ---------- 굿즈 부가 사진 (최대 10장) ----------
+
+const extraBox = document.getElementById("extra-images");
+const extraInput = document.getElementById("extra-file");
+
+function renderExtraImages() {
+  document.getElementById("extra-count").textContent = extraImages.length;
+  extraBox.innerHTML = extraImages.map((url, i) => `
+    <div class="extra-item">
+      <img src="${url}" alt="">
+      <button type="button" class="extra-remove" data-index="${i}" aria-label="사진 삭제">×</button>
+    </div>`).join("");
+  extraInput.disabled = extraImages.length >= MAX_EXTRA_IMAGES;
+}
+
+extraBox.addEventListener("click", (event) => {
+  const button = event.target.closest(".extra-remove");
+  if (!button) return;
+  extraImages.splice(Number(button.dataset.index), 1);
+  renderExtraImages();
+});
+
+extraInput.addEventListener("change", async (event) => {
+  const files = [...event.target.files];
+  extraInput.value = "";
+  if (files.length === 0) return;
+  const room = MAX_EXTRA_IMAGES - extraImages.length;
+  const toUpload = files.slice(0, room);
+  try {
+    // 고른 순서대로 한 장씩 올린다
+    for (let i = 0; i < toUpload.length; i++) {
+      showMessage(message, `사진을 올리는 중입니다... (${i + 1}/${toUpload.length})`, "success");
+      extraImages.push(await uploadImage(toUpload[i]));
+      renderExtraImages();
+    }
+    showMessage(message, files.length > room
+      ? `부가 사진은 ${MAX_EXTRA_IMAGES}장까지라 ${files.length - room}장은 올리지 않았습니다.`
+      : "");
+  } catch (e) {
+    showMessage(message, e.message);
+  }
 });
 
 // ---------- 폼 읽기 / 채우기 ----------
@@ -134,6 +180,7 @@ function readForm() {
     maxPerPerson: toNumber(value("maxPerPerson")),
     saleStartAt: value("saleStartAt") || null,
     saleEndAt: value("saleEndAt") || null,
+    description: value("description"),
   };
   if (isTicket) {
     body.venue = value("venue");
@@ -154,8 +201,8 @@ function readForm() {
   } else {
     body.price = toNumber(value("price"));
     body.quantity = toNumber(value("quantity"));
-    body.description = value("description");
     body.deliveryType = value("deliveryType");
+    body.images = [...extraImages];
   }
   return body;
 }
@@ -164,7 +211,9 @@ function resetForm() {
   editingId = null;
   form.reset();
   form.querySelectorAll("input[name=type]").forEach((r) => r.disabled = false);
-  document.querySelectorAll(".image-picker").forEach((p) => setImage(p, null));
+  document.querySelectorAll(".image-picker[data-target]").forEach((p) => setImage(p, null));
+  extraImages = [];
+  renderExtraImages();
   gradeRows.innerHTML = "";
   performanceRows.innerHTML = "";
   addGradeRow();
@@ -189,6 +238,7 @@ function startEdit(product) {
   document.getElementById("saleStartAt").value = product.saleStartAt.slice(0, 16);
   document.getElementById("saleEndAt").value = product.saleEndAt.slice(0, 16);
   setImage(document.querySelector(".image-picker[data-target=imageUrl]"), product.imageUrl);
+  document.getElementById("description").value = product.description ?? "";
 
   if (product.type === "TICKET") {
     document.getElementById("venue").value = product.venue ?? "";
@@ -202,8 +252,9 @@ function startEdit(product) {
     const item = product.saleItems[0];
     document.getElementById("price").value = item?.price ?? "";
     document.getElementById("quantity").value = item?.totalQuantity ?? "";
-    document.getElementById("description").value = product.description ?? "";
     document.getElementById("deliveryType").value = product.deliveryType ?? "PARCEL";
+    extraImages = [...(product.images ?? [])];
+    renderExtraImages();
   }
 
   document.getElementById("form-title").textContent = "상품 수정";
@@ -274,7 +325,7 @@ function renderStock(p) {
   if (p.type === "GOODS") {
     const item = p.saleItems[0];
     return item
-      ? `<p class="product-meta">${won(item.price)} · 남은 수량 ${item.remainingQuantity}/${item.totalQuantity} · ${DELIVERY_NAME[p.deliveryType]}</p>`
+      ? `<p class="product-meta">${won(item.price)} · 남은 수량 ${item.remainingQuantity}/${item.totalQuantity} · ${DELIVERY_NAME[p.deliveryType]}${p.images?.length ? ` · 부가 사진 ${p.images.length}장` : ""}</p>`
       : "";
   }
   const gradeName = Object.fromEntries(p.seatGrades.map((g) => [g.id, g.name]));

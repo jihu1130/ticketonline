@@ -9,12 +9,14 @@ import io.github.jihu1130.ticketonline.domain.product.dto.SeatGradeRequest;
 import io.github.jihu1130.ticketonline.domain.product.entity.GoodsDetail;
 import io.github.jihu1130.ticketonline.domain.product.entity.Performance;
 import io.github.jihu1130.ticketonline.domain.product.entity.Product;
+import io.github.jihu1130.ticketonline.domain.product.entity.ProductImage;
 import io.github.jihu1130.ticketonline.domain.product.entity.ProductType;
 import io.github.jihu1130.ticketonline.domain.product.entity.SaleItem;
 import io.github.jihu1130.ticketonline.domain.product.entity.SeatGrade;
 import io.github.jihu1130.ticketonline.domain.product.entity.TicketDetail;
 import io.github.jihu1130.ticketonline.domain.product.repository.GoodsDetailRepository;
 import io.github.jihu1130.ticketonline.domain.product.repository.PerformanceRepository;
+import io.github.jihu1130.ticketonline.domain.product.repository.ProductImageRepository;
 import io.github.jihu1130.ticketonline.domain.product.repository.ProductRepository;
 import io.github.jihu1130.ticketonline.domain.product.repository.SaleItemRepository;
 import io.github.jihu1130.ticketonline.domain.product.repository.SeatGradeRepository;
@@ -45,6 +47,8 @@ public class ProductService {
 
     static final int MAX_SEAT_GRADES = 10;
     static final int MAX_PERFORMANCES = 20;
+    /** 굿즈 부가 사진 최대 장수 */
+    static final int MAX_EXTRA_IMAGES = 10;
     /** 예매 마감 시간을 보내지 않았을 때: 공연 시작 1시간 전 마감 */
     static final int DEFAULT_CLOSE_BEFORE_HOURS = 1;
 
@@ -54,6 +58,7 @@ public class ProductService {
     private final SeatGradeRepository seatGradeRepository;
     private final PerformanceRepository performanceRepository;
     private final SaleItemRepository saleItemRepository;
+    private final ProductImageRepository productImageRepository;
     private final MemberRepository memberRepository;
 
     @Transactional
@@ -77,6 +82,7 @@ public class ProductService {
                     .venue(request.venue().trim())
                     .seatMapUrl(blankToNull(request.seatMapUrl()))
                     .closeBeforeHours(closeBeforeHours(request))
+                    .description(trimToNull(request.description()))
                     .build();
             ticketDetailRepository.save(ticket);
             return saveTicketStock(product, ticket, request);
@@ -87,7 +93,8 @@ public class ProductService {
                 .deliveryType(request.deliveryType())
                 .build();
         goodsDetailRepository.save(goods);
-        return saveGoodsStock(product, goods, request);
+        List<ProductImage> images = saveImages(product, request.images());
+        return saveGoodsStock(product, goods, request, images);
     }
 
     /** 내가 등록한 상품 (최근 등록 순) */
@@ -108,13 +115,15 @@ public class ProductService {
         if (product.getType() == ProductType.TICKET) {
             TicketDetail ticket = ticketDetailRepository.findById(productId)
                     .orElseThrow(() -> new CustomException(ErrorCode.PRODUCT_NOT_FOUND));
-            ticket.update(request.venue().trim(), blankToNull(request.seatMapUrl()), closeBeforeHours(request));
+            ticket.update(request.venue().trim(), blankToNull(request.seatMapUrl()), closeBeforeHours(request),
+                    trimToNull(request.description()));
             return saveTicketStock(product, ticket, request);
         }
         GoodsDetail goods = goodsDetailRepository.findById(productId)
                 .orElseThrow(() -> new CustomException(ErrorCode.PRODUCT_NOT_FOUND));
         goods.update(request.description().trim(), request.deliveryType());
-        return saveGoodsStock(product, goods, request);
+        List<ProductImage> images = saveImages(product, request.images());
+        return saveGoodsStock(product, goods, request, images);
     }
 
     /** 판매 시작 전에, 등록한 본인만 삭제할 수 있다. 판매 전이라 주문 기록은 없다. */
@@ -164,21 +173,36 @@ public class ProductService {
             }
         }
         saleItemRepository.saveAll(items);
-        return ProductResponse.of(product, ticket, null, grades, performances, items);
+        return ProductResponse.of(product, ticket, null, grades, performances, items, List.of());
     }
 
-    private ProductResponse saveGoodsStock(Product product, GoodsDetail goods, ProductInput input) {
+    private ProductResponse saveGoodsStock(Product product, GoodsDetail goods, ProductInput input,
+                                           List<ProductImage> images) {
         SaleItem item = SaleItem.builder()
                 .product(product)
                 .price(input.price())
                 .totalQuantity(input.quantity())
                 .build();
         saleItemRepository.save(item);
-        return ProductResponse.of(product, null, goods, List.of(), List.of(), List.of(item));
+        return ProductResponse.of(product, null, goods, List.of(), List.of(), List.of(item), images);
     }
 
-    /** 재고가 회차·등급을 참조하므로 재고부터 지운다. */
+    /** 부가 사진을 보낸 순서대로 저장한다. */
+    private List<ProductImage> saveImages(Product product, List<String> urls) {
+        if (urls == null || urls.isEmpty()) {
+            return List.of();
+        }
+        List<ProductImage> images = new ArrayList<>();
+        for (int i = 0; i < urls.size(); i++) {
+            images.add(ProductImage.builder().product(product).url(urls.get(i)).sortOrder(i).build());
+        }
+        productImageRepository.saveAll(images);
+        return images;
+    }
+
+    /** 재고가 회차·등급을 참조하므로 재고부터 지운다. 부가 사진도 함께 지운다 (수정 시 다시 저장). */
     private void deleteStock(Long productId) {
+        productImageRepository.deleteByProductId(productId);
         saleItemRepository.deleteByProductId(productId);
         performanceRepository.deleteByProductId(productId);
         seatGradeRepository.deleteByProductId(productId);
@@ -202,12 +226,16 @@ public class ProductService {
                 .collect(Collectors.groupingBy(p -> p.getProduct().getId()));
         Map<Long, List<SaleItem>> items = saleItemRepository.findByProductIdInOrderByIdAsc(ids).stream()
                 .collect(Collectors.groupingBy(s -> s.getProduct().getId()));
+        Map<Long, List<ProductImage>> images = productImageRepository
+                .findByProductIdInOrderBySortOrderAsc(ids).stream()
+                .collect(Collectors.groupingBy(i -> i.getProduct().getId()));
 
         return products.stream()
                 .map(p -> ProductResponse.of(p, tickets.get(p.getId()), goods.get(p.getId()),
                         grades.getOrDefault(p.getId(), List.of()),
                         performances.getOrDefault(p.getId(), List.of()),
-                        items.getOrDefault(p.getId(), List.of())))
+                        items.getOrDefault(p.getId(), List.of()),
+                        images.getOrDefault(p.getId(), List.of())))
                 .toList();
     }
 
@@ -237,6 +265,29 @@ public class ProductService {
             validateTicket(in);
         } else {
             validateGoods(in);
+        }
+        validateExtraImages(type, in.images());
+    }
+
+    /** 부가 사진: 굿즈만, 최대 10장, 이 사이트에 올린 사진, 같은 사진 중복 불가 */
+    private void validateExtraImages(ProductType type, List<String> urls) {
+        if (urls == null || urls.isEmpty()) {
+            return;
+        }
+        if (type == ProductType.TICKET) {
+            throw invalid("부가 사진은 굿즈만 등록할 수 있습니다.");
+        }
+        if (urls.size() > MAX_EXTRA_IMAGES) {
+            throw invalid("부가 사진은 " + MAX_EXTRA_IMAGES + "장까지 등록할 수 있습니다.");
+        }
+        Set<String> seen = new HashSet<>();
+        for (String url : urls) {
+            if (isBlank(url) || !ImageService.isUploadedUrl(url)) {
+                throw invalid("사진은 이 사이트에 올린 사진만 사용할 수 있습니다.");
+            }
+            if (!seen.add(url)) {
+                throw invalid("같은 부가 사진이 두 번 들어 있습니다.");
+            }
         }
     }
 
@@ -330,6 +381,10 @@ public class ProductService {
 
     private static String blankToNull(String text) {
         return isBlank(text) ? null : text;
+    }
+
+    private static String trimToNull(String text) {
+        return isBlank(text) ? null : text.trim();
     }
 
     private static CustomException invalid(String message) {

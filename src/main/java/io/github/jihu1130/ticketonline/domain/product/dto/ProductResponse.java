@@ -4,6 +4,7 @@ import io.github.jihu1130.ticketonline.domain.product.entity.DeliveryType;
 import io.github.jihu1130.ticketonline.domain.product.entity.GoodsDetail;
 import io.github.jihu1130.ticketonline.domain.product.entity.Performance;
 import io.github.jihu1130.ticketonline.domain.product.entity.Product;
+import io.github.jihu1130.ticketonline.domain.product.entity.ProductImage;
 import io.github.jihu1130.ticketonline.domain.product.entity.ProductType;
 import io.github.jihu1130.ticketonline.domain.product.entity.SaleItem;
 import io.github.jihu1130.ticketonline.domain.product.entity.SeatGrade;
@@ -24,6 +25,9 @@ public record ProductResponse(
         LocalDateTime saleStartAt,
         LocalDateTime saleEndAt,
         LocalDateTime createdAt,
+        // 공통: 설명(굿즈 상품 설명 / 티켓 공연 소개, 없으면 null), 부가 사진(굿즈만)
+        String description,
+        List<String> images,
         // 티켓
         String venue,
         String seatMapUrl,
@@ -31,7 +35,6 @@ public record ProductResponse(
         List<SeatGradeResponse> seatGrades,
         List<PerformanceResponse> performances,
         // 굿즈
-        String description,
         DeliveryType deliveryType,
         // 공통 재고
         List<SaleItemResponse> saleItems
@@ -65,7 +68,9 @@ public record ProductResponse(
 
     public static ProductResponse of(Product product, TicketDetail ticket, GoodsDetail goods,
                                      List<SeatGrade> grades, List<Performance> performances,
-                                     List<SaleItem> saleItems) {
+                                     List<SaleItem> saleItems, List<ProductImage> images) {
+        String description = ticket != null ? ticket.getDescription()
+                : goods != null ? goods.getDescription() : null;
         return new ProductResponse(
                 product.getId(),
                 product.getType(),
@@ -75,6 +80,8 @@ public record ProductResponse(
                 product.getSaleStartAt(),
                 product.getSaleEndAt(),
                 product.getCreatedAt(),
+                description,
+                images.stream().map(ProductImage::getUrl).toList(),
                 ticket == null ? null : ticket.getVenue(),
                 ticket == null ? null : ticket.getSeatMapUrl(),
                 ticket == null ? null : ticket.getCloseBeforeHours(),
@@ -83,7 +90,6 @@ public record ProductResponse(
                         .map(p -> PerformanceResponse.from(p, product.getSaleEndAt(),
                                 ticket == null ? 0 : ticket.getCloseBeforeHours()))
                         .toList(),
-                goods == null ? null : goods.getDescription(),
                 goods == null ? null : goods.getDeliveryType(),
                 saleItems.stream().map(SaleItemResponse::from).toList());
     }

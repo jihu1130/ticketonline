@@ -23,6 +23,7 @@ import io.github.jihu1130.ticketonline.domain.product.entity.SaleItem;
 import io.github.jihu1130.ticketonline.domain.product.entity.TicketDetail;
 import io.github.jihu1130.ticketonline.domain.product.repository.GoodsDetailRepository;
 import io.github.jihu1130.ticketonline.domain.product.repository.PerformanceRepository;
+import io.github.jihu1130.ticketonline.domain.product.repository.ProductImageRepository;
 import io.github.jihu1130.ticketonline.domain.product.repository.ProductRepository;
 import io.github.jihu1130.ticketonline.domain.product.repository.SaleItemRepository;
 import io.github.jihu1130.ticketonline.domain.product.repository.SeatGradeRepository;
@@ -53,6 +54,7 @@ class ProductServiceTest {
     private final SeatGradeRepository seatGradeRepository = Mockito.mock(SeatGradeRepository.class);
     private final PerformanceRepository performanceRepository = Mockito.mock(PerformanceRepository.class);
     private final SaleItemRepository saleItemRepository = Mockito.mock(SaleItemRepository.class);
+    private final ProductImageRepository productImageRepository = Mockito.mock(ProductImageRepository.class);
     private final MemberRepository memberRepository = Mockito.mock(MemberRepository.class);
     private ProductService productService;
 
@@ -69,7 +71,8 @@ class ProductServiceTest {
     @BeforeEach
     void setUp() {
         productService = new ProductService(productRepository, ticketDetailRepository, goodsDetailRepository,
-                seatGradeRepository, performanceRepository, saleItemRepository, memberRepository);
+                seatGradeRepository, performanceRepository, saleItemRepository, productImageRepository,
+                memberRepository);
         given(memberRepository.getReferenceById(SELLER_ID)).willReturn(seller);
     }
 
@@ -170,7 +173,7 @@ class ProductServiceTest {
     @Test
     void createTicket_rejectsWithoutVenue() {
         ProductCreateRequest request = new ProductCreateRequest(ProductType.TICKET, "콘서트", null, 2,
-                start, end, " ", null, twoGrades, List.of(day1), 1, null, null, null, null);
+                start, end, " ", null, twoGrades, List.of(day1), 1, null, null, null, null, null);
         assertInvalid(request, "장소");
     }
 
@@ -215,14 +218,14 @@ class ProductServiceTest {
     void create_rejectsSaleStartInPast() {
         ProductCreateRequest request = new ProductCreateRequest(ProductType.TICKET, "콘서트", null, 2,
                 LocalDateTime.now().minusMinutes(1), end, "올림픽홀", null, twoGrades, List.of(day1),
-                1, null, null, null, null);
+                1, null, null, null, null, null);
         assertInvalid(request, "현재 이후");
     }
 
     @Test
     void create_rejectsEndNotAfterStart() {
         ProductCreateRequest request = new ProductCreateRequest(ProductType.TICKET, "콘서트", null, 2,
-                start, start, "올림픽홀", null, twoGrades, List.of(day1), 1, null, null, null, null);
+                start, start, "올림픽홀", null, twoGrades, List.of(day1), 1, null, null, null, null, null);
         assertInvalid(request, "판매 시작 일시 이후");
     }
 
@@ -230,8 +233,94 @@ class ProductServiceTest {
     void create_rejectsExternalImageUrl() {
         ProductCreateRequest request = new ProductCreateRequest(ProductType.TICKET, "콘서트",
                 "https://evil.example.com/a.png", 2, start, end, "올림픽홀", null, twoGrades, List.of(day1),
-                1, null, null, null, null);
+                1, null, null, null, null, null);
         assertInvalid(request, "이 사이트에 올린 사진");
+    }
+
+    // ---------- 부가 사진 / 티켓 설명 ----------
+
+    @Test
+    void createGoods_savesExtraImagesInOrder() {
+        List<String> urls = uploadedImages(ProductService.MAX_EXTRA_IMAGES);
+
+        ProductResponse response = productService.create(SELLER_ID,
+                goodsWithImages(1, 30000, 10, DeliveryType.PARCEL, urls));
+
+        assertThat(response.images()).containsExactlyElementsOf(urls);
+        verify(productImageRepository).saveAll(any());
+    }
+
+    @Test
+    void createGoods_rejectsMoreThanTenImages() {
+        assertInvalid(goodsWithImages(1, 30000, 10, DeliveryType.PARCEL,
+                uploadedImages(ProductService.MAX_EXTRA_IMAGES + 1)), "10장까지");
+    }
+
+    @Test
+    void createGoods_rejectsDuplicateImage() {
+        assertInvalid(goodsWithImages(1, 30000, 10, DeliveryType.PARCEL,
+                List.of(uploaded(1), uploaded(1))), "두 번");
+    }
+
+    @Test
+    void createGoods_rejectsExternalExtraImage() {
+        assertInvalid(goodsWithImages(1, 30000, 10, DeliveryType.PARCEL,
+                List.of(uploaded(1), "https://evil.example.com/b.png")), "이 사이트에 올린 사진");
+    }
+
+    @Test
+    void createTicket_rejectsExtraImages() {
+        assertInvalid(ticketWithDescription(null, List.of(uploaded(1))), "굿즈만");
+    }
+
+    @Test
+    void createTicket_savesDescription() {
+        ProductResponse response = productService.create(SELLER_ID,
+                ticketWithDescription("  3년 만의 단독 콘서트  ", null));
+
+        assertThat(response.description()).isEqualTo("3년 만의 단독 콘서트");
+        assertThat(response.images()).isEmpty();
+        verify(productImageRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void createTicket_descriptionIsOptional() {
+        ProductResponse response = productService.create(SELLER_ID, ticketWithDescription(" ", null));
+
+        assertThat(response.description()).isNull();
+    }
+
+    @Test
+    void updateGoods_replacesExtraImages() {
+        Product product = savedProduct(ProductType.GOODS, start);
+        GoodsDetail detail = GoodsDetail.builder().product(product).description("설명")
+                .deliveryType(DeliveryType.PARCEL).build();
+        given(productRepository.findById(PRODUCT_ID)).willReturn(Optional.of(product));
+        given(goodsDetailRepository.findById(PRODUCT_ID)).willReturn(Optional.of(detail));
+
+        ProductResponse response = productService.update(SELLER_ID, PRODUCT_ID,
+                new ProductUpdateRequest("굿즈", null, 1, start, end, null, null, null, null, null,
+                        30000, 10, "새 설명", DeliveryType.PICKUP, List.of(uploaded(2), uploaded(1))));
+
+        // 기존 사진을 지운 뒤 새 목록을 보낸 순서대로 저장
+        InOrder order = inOrder(productImageRepository);
+        order.verify(productImageRepository).deleteByProductId(PRODUCT_ID);
+        order.verify(productImageRepository).saveAll(any());
+        assertThat(response.images()).containsExactly(uploaded(2), uploaded(1));
+        assertThat(response.description()).isEqualTo("새 설명");
+    }
+
+    @Test
+    void updateTicket_changesDescription() {
+        Product product = savedProduct(ProductType.TICKET, start);
+        TicketDetail detail = TicketDetail.builder().product(product).venue("올림픽홀").description("옛 소개").build();
+        given(productRepository.findById(PRODUCT_ID)).willReturn(Optional.of(product));
+        given(ticketDetailRepository.findById(PRODUCT_ID)).willReturn(Optional.of(detail));
+
+        productService.update(SELLER_ID, PRODUCT_ID, new ProductUpdateRequest("콘서트", null, 2, start, end,
+                "올림픽홀", null, twoGrades, List.of(day1), 1, null, null, "새 소개", null, null));
+
+        assertThat(detail.getDescription()).isEqualTo("새 소개");
     }
 
     // ---------- 수정 / 삭제 ----------
@@ -293,7 +382,8 @@ class ProductServiceTest {
 
         productService.delete(SELLER_ID, PRODUCT_ID);
 
-        InOrder order = inOrder(saleItemRepository, goodsDetailRepository, productRepository);
+        InOrder order = inOrder(productImageRepository, saleItemRepository, goodsDetailRepository, productRepository);
+        order.verify(productImageRepository).deleteByProductId(PRODUCT_ID);
         order.verify(saleItemRepository).deleteByProductId(PRODUCT_ID);
         order.verify(goodsDetailRepository).deleteById(PRODUCT_ID);
         order.verify(productRepository).delete(product);
@@ -354,23 +444,46 @@ class ProductServiceTest {
 
     private ProductCreateRequest ticket(int limit, List<SeatGradeRequest> grades, List<LocalDateTime> performances) {
         return new ProductCreateRequest(ProductType.TICKET, "콘서트", IMAGE, limit, start, end,
-                "올림픽홀", IMAGE, grades, performances, 1, null, null, null, null);
+                "올림픽홀", IMAGE, grades, performances, 1, null, null, null, null, null);
     }
 
     private ProductCreateRequest ticketWithClose(int limit, List<LocalDateTime> performances, Integer closeHours) {
         return new ProductCreateRequest(ProductType.TICKET, "콘서트", IMAGE, limit, start, end,
-                "올림픽홀", IMAGE, twoGrades, performances, closeHours, null, null, null, null);
+                "올림픽홀", IMAGE, twoGrades, performances, closeHours, null, null, null, null, null);
     }
 
     private ProductCreateRequest goods(int limit, Integer price, Integer quantity, DeliveryType deliveryType) {
+        return goodsWithImages(limit, price, quantity, deliveryType, null);
+    }
+
+    private ProductCreateRequest goodsWithImages(int limit, Integer price, Integer quantity,
+                                                 DeliveryType deliveryType, List<String> images) {
         return new ProductCreateRequest(ProductType.GOODS, "한정 굿즈", IMAGE, limit, start, end,
-                null, null, null, null, null, price, quantity, "1000부 한정", deliveryType);
+                null, null, null, null, null, price, quantity, "1000부 한정", deliveryType, images);
+    }
+
+    private ProductCreateRequest ticketWithDescription(String description, List<String> images) {
+        return new ProductCreateRequest(ProductType.TICKET, "콘서트", IMAGE, 2, start, end,
+                "올림픽홀", IMAGE, twoGrades, List.of(day1), 1, null, null, description, null, images);
+    }
+
+    /** 이 사이트에 올린 사진 주소 형식 (/uploads/yyyyMM/uuid.png) */
+    private static String uploaded(int n) {
+        return String.format("/uploads/202610/00000000-0000-0000-0000-%012d.png", n);
+    }
+
+    private static List<String> uploadedImages(int count) {
+        List<String> urls = new ArrayList<>();
+        for (int i = 1; i <= count; i++) {
+            urls.add(uploaded(i));
+        }
+        return urls;
     }
 
     private ProductUpdateRequest updateTicket(int limit, List<SeatGradeRequest> grades,
                                               List<LocalDateTime> performances) {
         return new ProductUpdateRequest("콘서트", null, limit, start, end,
-                "체조경기장", null, grades, performances, 1, null, null, null, null);
+                "체조경기장", null, grades, performances, 1, null, null, null, null, null);
     }
 
     private Product savedProduct(ProductType type, LocalDateTime saleStart) {
