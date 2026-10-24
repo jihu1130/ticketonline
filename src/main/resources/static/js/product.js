@@ -1,9 +1,10 @@
-// 상품 상세: 사진, 기본 정보, 구매, (티켓) 회차별 등급·남은 좌석, 좌석 배치도, 설명
+// 상품 상세: 사진, 기본 정보, (티켓) 회차별 등급·남은 좌석, 좌석 배치도, 설명
 // 남은 수량과 판매 상태는 3초마다 다시 불러온다.
-// 구매는 결제 없이 바로 구매 확정된다 (F-04).
+// 구매는 "예매하기/구매하기" 버튼으로 예매 화면(booking.html)에서 한다.
+// (9단계 이후에는 이 버튼이 대기열을 거쳐 예매 화면으로 들어가게 된다)
 
 const REFRESH_MS = 3000;
-const BUY_LABEL = { UPCOMING: "판매 예정", ON_SALE: "구매하기", SOLD_OUT: "매진", ENDED: "판매 종료" };
+const CLOSED_LABEL = { UPCOMING: "판매 예정", SOLD_OUT: "매진", ENDED: "판매 종료" };
 
 const productId = new URLSearchParams(location.search).get("id");
 const detailBox = document.getElementById("product-detail");
@@ -41,7 +42,8 @@ function render() {
         <h1 class="detail-title">${escapeHtml(p.title)}</h1>
         <dl class="spec">${renderSpec(p)}</dl>
         <div id="goods-stock"></div>
-        <div id="buy-box"></div>
+        <button class="btn" type="button" id="book-button"></button>
+        <p class="hint buy-hint">${isTicket ? "회차와 좌석 등급은 예매 화면에서 고릅니다." : "수량과 배송지는 구매 화면에서 입력합니다."}</p>
       </div>
     </div>
     ${isTicket ? `
@@ -61,7 +63,7 @@ function render() {
       </section>` : ""}`;
 
   bindGallery();
-  renderBuyBox();
+  document.getElementById("book-button").addEventListener("click", goBooking);
   renderStock();
 }
 
@@ -94,18 +96,32 @@ function bindGallery() {
   }));
 }
 
+/** 예매 화면으로. 로그인하지 않았으면 로그인한 뒤 예매 화면으로 돌아온다 */
+function goBooking() {
+  const target = `/booking.html?id=${product.id}`;
+  location.href = auth.token() ? target : `/login.html?redirect=${encodeURIComponent(target)}`;
+}
+
 // ---------- 3초마다 바뀌는 부분 (상태, 남은 수량) ----------
 
 function renderStock() {
   const p = product;
   document.getElementById("status-badge").innerHTML = statusBadge(PRODUCT_STATUS, p.status);
-  updateBuyOptions();
+  renderBookButton();
   if (p.type === "GOODS") {
     const item = p.saleItems[0];
     document.getElementById("goods-stock").innerHTML = item ? stockBar(item.remainingQuantity, item.totalQuantity) : "";
   } else {
     document.getElementById("performance-list").innerHTML = p.performances.map(renderPerformance).join("");
   }
+}
+
+/** 판매 중일 때만 누를 수 있다. 아니면 상태를 버튼에 보여 준다 */
+function renderBookButton() {
+  const button = document.getElementById("book-button");
+  const onSale = product.status === "ON_SALE";
+  button.textContent = onSale ? (product.type === "TICKET" ? "예매하기" : "구매하기") : CLOSED_LABEL[product.status];
+  button.disabled = !onSale;
 }
 
 function stockBar(remaining, total) {
@@ -144,160 +160,6 @@ function renderPerformance(perf) {
     </article>`;
 }
 
-// ---------- 구매 (결제 없이 바로 확정) ----------
-
-/** 구매 입력칸: 처음 한 번만 그린다 (3초 갱신 때 고른 값이 지워지지 않게) */
-function renderBuyBox() {
-  const p = product;
-  const isTicket = p.type === "TICKET";
-  const ticketFields = isTicket ? `
-    <div class="field">
-      <label for="perf-select">공연 회차</label>
-      <select id="perf-select"></select>
-    </div>
-    <div class="field">
-      <label for="grade-select">좌석 등급</label>
-      <select id="grade-select"></select>
-    </div>` : "";
-  const addressField = !isTicket && p.deliveryType === "PARCEL" ? `
-    <div class="field">
-      <label for="address">배송 주소</label>
-      <input id="address" maxlength="255" placeholder="예: 서울시 송파구 올림픽로 424">
-    </div>` : "";
-  document.getElementById("buy-box").innerHTML = `
-    <form id="buy-form" class="buy-form" novalidate>
-      ${ticketFields}
-      <div class="field">
-        <label for="quantity">수량</label>
-        <input id="quantity" type="number" min="1" max="${p.maxPerPerson}" value="1">
-        <p class="hint">${isTicket ? `1인 회차당 ${p.maxPerPerson}매까지` : `1인 ${p.maxPerPerson}개까지`}</p>
-      </div>
-      ${addressField}
-      <div class="buy-total"><span>구매 금액</span><strong id="total-price"></strong></div>
-      <button class="btn" type="submit" id="buy-button"></button>
-      <p class="hint buy-hint">결제 기능 없이 바로 구매가 확정됩니다.</p>
-      <p class="message" id="buy-message"></p>
-    </form>`;
-
-  const form = document.getElementById("buy-form");
-  form.addEventListener("change", (event) => {
-    if (event.target.id === "perf-select") fillGradeOptions();
-    updateBuyState();
-  });
-  form.addEventListener("input", updateBuyState);
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    buy();
-  });
-}
-
-/** 회차·등급 목록과 남은 수량을 최신 값으로 바꾼다. 고른 값은 그대로 둔다 */
-function updateBuyOptions() {
-  if (product.type === "TICKET") {
-    const select = document.getElementById("perf-select");
-    const selected = select.value;
-    select.innerHTML = product.performances.map((perf) => `
-      <option value="${perf.id}" ${perf.status === "OPEN" ? "" : "disabled"}>
-        ${formatDateTime(perf.eventAt)} · ${PERFORMANCE_STATUS[perf.status].label}
-      </option>`).join("");
-    const open = product.performances.find((perf) => perf.status === "OPEN");
-    select.value = isSelectable(select, selected) ? selected : (open ? String(open.id) : String(product.performances[0]?.id ?? ""));
-    fillGradeOptions();
-  }
-  updateBuyState();
-}
-
-function isSelectable(select, value) {
-  return [...select.options].some((o) => o.value === value && !o.disabled);
-}
-
-function fillGradeOptions() {
-  const perfId = Number(document.getElementById("perf-select").value);
-  const select = document.getElementById("grade-select");
-  const selected = select.value;
-  const items = product.saleItems.filter((s) => s.performanceId === perfId);
-  select.innerHTML = product.seatGrades.map((g) => {
-    const item = items.find((s) => s.seatGradeId === g.id);
-    if (!item) return "";
-    const left = item.remainingQuantity === 0 ? "매진" : `남은 좌석 ${item.remainingQuantity.toLocaleString()}`;
-    return `<option value="${item.id}" ${item.remainingQuantity === 0 ? "disabled" : ""}>
-      ${escapeHtml(g.name)} ${won(g.price)} · ${left}</option>`;
-  }).join("");
-  const firstLeft = [...select.options].find((o) => !o.disabled);
-  select.value = isSelectable(select, selected) ? selected : (firstLeft?.value ?? select.options[0]?.value ?? "");
-}
-
-/** 지금 고른 판매 단위 (티켓: 회차 x 등급, 굿즈: 1개) */
-function selectedItem() {
-  if (product.type === "TICKET") {
-    const id = Number(document.getElementById("grade-select").value);
-    return product.saleItems.find((s) => s.id === id) ?? null;
-  }
-  return product.saleItems[0] ?? null;
-}
-
-/** 금액과 버튼 상태. 최종 판단(한도·재고·마감)은 서버가 한다 */
-function updateBuyState() {
-  const item = selectedItem();
-  const quantity = Number(document.getElementById("quantity").value) || 0;
-  document.getElementById("total-price").textContent = item && quantity > 0 ? won(item.price * quantity) : "-";
-
-  const button = document.getElementById("buy-button");
-  let label = "구매하기";
-  if (product.status !== "ON_SALE") {
-    label = BUY_LABEL[product.status];
-  } else if (product.type === "TICKET") {
-    const perf = product.performances.find((x) => x.id === Number(document.getElementById("perf-select").value));
-    if (!perf || perf.status !== "OPEN") label = "예매할 수 없는 회차";
-    else if (!item || item.remainingQuantity === 0) label = "매진";
-  } else if (!item || item.remainingQuantity === 0) {
-    label = "매진";
-  }
-  button.textContent = label;
-  button.disabled = label !== "구매하기";
-}
-
-async function buy() {
-  const message = document.getElementById("buy-message");
-  if (!auth.token()) {
-    // 로그인 후 이 상품으로 돌아온다
-    location.href = `/login.html?redirect=${encodeURIComponent(location.pathname + location.search)}`;
-    return;
-  }
-  const item = selectedItem();
-  const quantity = Number(document.getElementById("quantity").value);
-  if (!item || !Number.isInteger(quantity) || quantity < 1) {
-    showMessage(message, "구매할 항목과 수량을 확인해 주세요.");
-    return;
-  }
-  const what = product.type === "TICKET"
-    ? `${document.getElementById("perf-select").selectedOptions[0].textContent.trim().split(" · ")[0]} / ${
-        product.seatGrades.find((g) => g.id === item.seatGradeId)?.name ?? ""}`
-    : product.title;
-  if (!confirm(`${what}\n${quantity}${product.type === "TICKET" ? "매" : "개"} · ${won(item.price * quantity)}\n\n결제 없이 바로 구매가 확정됩니다. 구매할까요?`)) {
-    return;
-  }
-
-  const button = document.getElementById("buy-button");
-  button.disabled = true;
-  try {
-    const address = document.getElementById("address")?.value.trim() || null;
-    await api(`/api/products/${product.id}/orders`, {
-      method: "POST",
-      body: { saleItemId: item.id, quantity, address },
-    });
-    message.className = "message success";
-    message.innerHTML = `구매가 확정되었습니다. <a href="/my-orders.html">구매 내역 보기</a>`;
-  } catch (e) {
-    if (e.status === 401) {
-      location.href = `/login.html?redirect=${encodeURIComponent(location.pathname + location.search)}`;
-      return;
-    }
-    showMessage(message, e.message);
-  }
-  await reloadStock();
-}
-
 // ---------- 불러오기 ----------
 
 async function load() {
@@ -319,11 +181,6 @@ async function load() {
 async function refresh() {
   // 다른 탭을 보고 있거나 앞의 요청이 아직 끝나지 않았으면 건너뛴다
   if (document.hidden || refreshing) return;
-  await reloadStock();
-}
-
-/** 남은 수량과 상태를 다시 불러와 바뀌는 부분만 다시 그린다 */
-async function reloadStock() {
   refreshing = true;
   try {
     product = await api(`/api/products/${encodeURIComponent(productId)}`);

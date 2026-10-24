@@ -398,12 +398,57 @@ form > .hint { margin: 0 0 18px; }
 .seat-map { display: block; max-width: 100%; border: 1px solid var(--line); border-radius: 10px; }
 .description { margin: 0; font-size: 15px; line-height: 1.8; color: var(--sub); white-space: pre-wrap; word-break: break-word; }
 
-/* ── 구매 (상품 상세) ── */
-.buy-form .field { margin-bottom: 14px; }
-.buy-form .field label { margin-bottom: 6px; font-size: 13px; }
-.buy-total { display: flex; align-items: baseline; justify-content: space-between; margin: 4px 0 16px; padding-top: 14px; font-size: 14px; color: var(--sub); border-top: 1px dashed var(--line); }
-.buy-total strong { font-size: 22px; font-weight: 800; color: var(--navy); }
-.buy-form .message a { margin-left: 6px; font-weight: 700; color: var(--primary); }
+/* ── 예매 화면 ── */
+a.btn { display: block; text-align: center; text-decoration: none; }
+.link { font-weight: 700; color: var(--primary); }
+.back-link { display: inline-block; margin-bottom: 8px; font-size: 14px; color: var(--sub); text-decoration: none; }
+.back-link:hover { color: var(--primary); }
+.booking-layout { display: grid; grid-template-columns: minmax(0, 300px) minmax(0, 1fr); gap: 24px; align-items: start; }
+.booking-summary { position: sticky; top: 92px; }
+.booking-poster { display: block; width: 100%; aspect-ratio: 3 / 4; object-fit: cover; margin-bottom: 16px; border-radius: 12px; }
+.booking-title { margin: 10px 0 6px; font-size: 18px; font-weight: 800; color: var(--navy); }
+.booking-meta { margin: 4px 0; font-size: 13px; color: var(--sub); }
+.step-title { display: flex; align-items: center; gap: 8px; margin: 26px 0 12px; font-size: 16px; font-weight: 800; color: var(--navy); }
+.step-title:first-child { margin-top: 0; }
+.step-title span { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; font-size: 13px; color: #fff; background: var(--grad); border-radius: 50%; }
+.choice-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.choice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  font-family: inherit;
+  text-align: left;
+  color: var(--text);
+  background: var(--card);
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.choice strong { font-size: 15px; }
+.choice span { font-size: 12px; color: var(--muted); }
+.choice:hover:not(:disabled) { border-color: var(--primary); }
+.choice.selected { background: var(--primary-soft); border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+.choice.selected span { color: var(--primary); }
+.choice:disabled { cursor: default; opacity: .45; background: var(--bg); }
+.stepper { display: inline-flex; align-items: center; overflow: hidden; border: 1.5px solid var(--line); border-radius: 12px; }
+.stepper button { width: 44px; height: 44px; font-size: 20px; font-family: inherit; color: var(--navy); background: var(--card); border: none; cursor: pointer; }
+.stepper button:disabled { color: #c3c6d4; cursor: default; }
+.stepper span { min-width: 56px; font-size: 18px; font-weight: 800; text-align: center; }
+.booking-main .field { margin: 0; }
+.booking-total { margin: 26px 0 16px; padding: 16px 18px; background: var(--bg); border-radius: 12px; }
+.booking-total dl { display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 6px 12px; margin: 0 0 12px; font-size: 14px; }
+.booking-total dt { color: var(--muted); }
+.booking-total dd { margin: 0; font-weight: 600; }
+.booking-sum { display: flex; align-items: baseline; justify-content: space-between; padding-top: 12px; font-size: 14px; color: var(--sub); border-top: 1px dashed #d6d9e6; }
+.booking-sum strong { font-size: 24px; font-weight: 800; color: var(--navy); }
+.booking-done { max-width: 560px; margin: 24px auto; text-align: center; }
+.booking-done h1 { margin: 12px 0 6px; font-size: 24px; font-weight: 800; color: var(--navy); }
+.booking-done .spec { margin-top: 24px; text-align: left; }
+.done-icon { display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; font-size: 28px; font-weight: 800; color: #fff; background: var(--grad); border-radius: 50%; }
+.done-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.done-actions .btn-secondary { margin-top: 0; }
 
 /* ── 구매 내역 ── */
 .order-list { display: flex; flex-direction: column; gap: 12px; }
@@ -425,11 +470,16 @@ form > .hint { margin: 0 0 18px; }
   .gnb { display: none; }
   .detail-top { grid-template-columns: 1fr; gap: 24px; }
   .detail-media { max-width: 380px; }
+  .booking-layout { grid-template-columns: 1fr; }
+  .booking-summary { position: static; display: flex; gap: 16px; align-items: flex-start; }
+  .booking-poster { width: 96px; margin-bottom: 0; }
 }
 @media (max-width: 560px) {
   .header-inner { padding: 0 16px; gap: 12px; }
   .logo-img { height: 30px; }
   .nav { gap: 10px; }
+  /* 로그인했을 때 메뉴가 화면보다 넓어지지 않게 "OO님"은 숨긴다 */
+  .nav > span { display: none; }
   .container { padding: 20px 16px 48px; }
   .hero { padding: 36px 24px; }
   .hero h1 { font-size: 26px; }
@@ -442,4 +492,6 @@ form > .hint { margin: 0 0 18px; }
   .performance-head .close-at { margin-left: 0; width: 100%; }
   .order-item { flex-wrap: wrap; padding: 16px; }
   .order-price { width: 100%; text-align: right; }
+  .choice-list { grid-template-columns: 1fr; }
+  .done-actions { grid-template-columns: 1fr; }
 }
