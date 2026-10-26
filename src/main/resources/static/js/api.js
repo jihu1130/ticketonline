@@ -103,6 +103,7 @@ function renderHeader() {
   const adminBadge = member.role === "ADMIN" ? `<span class="badge">관리자</span>` : "";
   nav.innerHTML = `
     ${adminBadge}
+    <a class="nav-messages" href="/messages.html" aria-label="메시지함"><span class="nav-label">메시지함</span><em class="nav-count" id="unread-count" hidden></em></a>
     <a href="/my-orders.html">구매 내역</a>
     <a href="/seller.html">판매 관리</a>
     <span>${escapeHtml(member.name)}님</span>
@@ -111,6 +112,21 @@ function renderHeader() {
     auth.clear();
     location.href = "/";
   });
+  refreshUnreadCount();
+}
+
+/** 헤더 메시지함 옆 안 읽은 개수. 메시지함 화면에서 읽음 처리한 뒤에도 부른다 */
+async function refreshUnreadCount() {
+  const badge = document.getElementById("unread-count");
+  if (!badge) return null;
+  try {
+    const count = await api("/api/members/me/messages/unread-count");
+    badge.textContent = count.total > 99 ? "99+" : String(count.total);
+    badge.hidden = count.total === 0;
+    return count;
+  } catch (e) {
+    return null; // 개수를 못 불러와도 화면은 그대로 쓴다
+  }
 }
 
 function escapeHtml(text) {

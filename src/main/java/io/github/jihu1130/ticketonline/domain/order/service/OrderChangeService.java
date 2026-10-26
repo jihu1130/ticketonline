@@ -51,6 +51,7 @@ public class OrderChangeService {
     private final PerformanceRepository performanceRepository;
     private final TicketDetailRepository ticketDetailRepository;
     private final GoodsDetailRepository goodsDetailRepository;
+    private final OrderNotices orderNotices;
 
     /** 전체 취소: 재고와 1인 한도를 모두 되돌린다 */
     public OrderResponse cancel(Long memberId, Long orderId) {
@@ -62,6 +63,7 @@ public class OrderChangeService {
         item.restore(order.getQuantity());
         count.subtract(order.getQuantity());
         order.cancel();
+        orderNotices.canceled(order);
         return OrderResponse.from(order);
     }
 
@@ -73,13 +75,15 @@ public class OrderChangeService {
             throw new CustomException(ErrorCode.INVALID_INPUT,
                     "지금 수량(" + order.getQuantity() + ")보다 적게 입력해 주세요. 늘리려면 새로 구매해 주세요.");
         }
-        int returned = order.getQuantity() - quantity;
+        int before = order.getQuantity();
+        int returned = before - quantity;
         PurchaseCount count = lockCount(memberId, target.product(), target.key().performanceId());
         SaleItem item = lockItem(target.key().id());
 
         item.restore(returned);
         count.subtract(returned);
         order.reduceQuantity(quantity);
+        orderNotices.quantityReduced(order, before);
         return OrderResponse.from(order, target.changeableUntil());
     }
 
@@ -93,6 +97,7 @@ public class OrderChangeService {
             throw new CustomException(ErrorCode.INVALID_INPUT, "택배로 받는 굿즈만 배송지를 바꿀 수 있습니다.");
         }
         target.order().changeAddress(address.trim());
+        orderNotices.addressChanged(target.order());
         return OrderResponse.from(target.order(), target.changeableUntil());
     }
 
@@ -161,6 +166,7 @@ public class OrderChangeService {
             toCount.add(quantity);
         }
         order.changeSaleItem(toItem);
+        orderNotices.itemChanged(order, fromItem);
         return OrderResponse.from(order, toCloseAt);
     }
 

@@ -52,6 +52,7 @@ class OrderServiceTest {
     private final SaleItemRepository saleItemRepository = Mockito.mock(SaleItemRepository.class);
     private final ProductOrderRepository productOrderRepository = Mockito.mock(ProductOrderRepository.class);
     private final PurchaseProcessor purchaseProcessor = Mockito.mock(PurchaseProcessor.class);
+    private final OrderNotices orderNotices = Mockito.mock(OrderNotices.class);
     private OrderService orderService;
 
     private final LocalDateTime now = LocalDateTime.now();
@@ -60,7 +61,7 @@ class OrderServiceTest {
     @BeforeEach
     void setUp() {
         orderService = new OrderService(productRepository, ticketDetailRepository, goodsDetailRepository,
-                performanceRepository, saleItemRepository, productOrderRepository, purchaseProcessor);
+                performanceRepository, saleItemRepository, productOrderRepository, purchaseProcessor, orderNotices);
     }
 
     // ---------- 굿즈 ----------

@@ -44,6 +44,7 @@ public class OrderService {
     private final SaleItemRepository saleItemRepository;
     private final ProductOrderRepository productOrderRepository;
     private final PurchaseProcessor purchaseProcessor;
+    private final OrderNotices orderNotices;
 
     @Transactional
     public OrderResponse purchase(Long memberId, Long productId, OrderRequest request) {
@@ -73,7 +74,9 @@ public class OrderService {
 
         PurchaseCommand command = new PurchaseCommand(memberId, productId, target.id(), scopeId,
                 product.getMaxPerPerson(), request.quantity(), address, ticket);
-        return OrderResponse.from(purchaseProcessor.process(command));
+        ProductOrder order = purchaseProcessor.process(command);
+        orderNotices.purchased(order);
+        return OrderResponse.from(order);
     }
 
     /** 내 구매 내역 (최근 순). 주문마다 취소·변경 기한(티켓은 회차 예매 마감, 굿즈는 판매 종료)을 함께 준다 */

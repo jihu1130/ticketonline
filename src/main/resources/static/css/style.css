@@ -91,6 +91,8 @@ a { color: inherit; }
 .nav { display: flex; align-items: center; gap: 16px; margin-left: auto; font-size: 13px; color: var(--sub); white-space: nowrap; }
 .nav a { text-decoration: none; }
 .nav a:hover { color: var(--primary); }
+.nav-count { display: inline-block; min-width: 18px; margin-left: 4px; padding: 1px 5px; font-size: 11px; font-style: normal; font-weight: 800; line-height: 16px; text-align: center; color: #fff; background: var(--error); border-radius: 999px; }
+.nav-count[hidden] { display: none; }
 .badge {
   display: inline-block;
   padding: 3px 9px;
@@ -467,6 +469,28 @@ a.btn { display: block; text-align: center; text-decoration: none; }
 .queue-note { margin: 0 0 16px; font-size: 13px; color: var(--muted); }
 .queue-box .btn-secondary { margin-top: 0; }
 
+/* ── 메시지함 ── */
+.message-tabs { flex-wrap: wrap; align-items: center; margin-bottom: 4px; }
+.message-tabs .nav-count { margin-left: 6px; }
+.read-all { margin-left: auto; }
+.read-all[hidden] { display: none; }
+.message-list { display: flex; flex-direction: column; gap: 10px; }
+.message-item { padding: 16px 20px; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); cursor: pointer; }
+.message-item.unread { box-shadow: inset 3px 0 0 var(--primary), var(--shadow); }
+.message-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 13px; color: var(--sub); }
+.message-head strong { color: var(--navy); }
+.unread-dot { width: 8px; height: 8px; background: var(--error); border-radius: 50%; }
+.message-product { font-weight: 700; color: var(--primary); text-decoration: none; }
+.message-product:hover { text-decoration: underline; }
+.message-time { margin-left: auto; color: var(--muted); }
+.message-content { margin: 8px 0 0; font-size: 14px; line-height: 1.6; color: var(--text); white-space: pre-wrap; word-break: break-word; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.message-item.open .message-content { display: block; }
+.message-item > .btn-small { margin-top: 10px; }
+.message-reply, .inquiry-form { margin-top: 12px; padding: 12px; background: var(--bg); border-radius: 10px; cursor: default; }
+.message-reply textarea, .inquiry-form textarea { width: 100%; min-height: 80px; margin-bottom: 8px; padding: 10px; font: inherit; font-size: 14px; background: var(--card); border: 1.5px solid var(--line); border-radius: 8px; resize: vertical; }
+.message-reply .message, .inquiry-form .message { text-align: left; }
+.inquiry-toggle { margin-top: 10px; }
+
 /* ── 구매 내역 ── */
 .order-list { display: flex; flex-direction: column; gap: 12px; }
 .order-item { display: flex; align-items: center; gap: 18px; padding: 18px 22px; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); }
@@ -506,9 +530,11 @@ a.btn { display: block; text-align: center; text-decoration: none; }
 @media (max-width: 560px) {
   .header-inner { padding: 0 16px; gap: 12px; }
   .logo-img { height: 30px; }
-  .nav { gap: 10px; }
-  /* 로그인했을 때 메뉴가 화면보다 넓어지지 않게 "OO님"은 숨긴다 */
+  .nav { gap: 8px; }
+  /* 로그인했을 때 메뉴가 화면보다 넓어지지 않게 "OO님"은 숨기고, 메시지함은 아이콘으로 */
   .nav > span { display: none; }
+  .nav-label { display: none; }
+  .nav-messages::before { content: "✉"; font-size: 17px; line-height: 1; }
   .container { padding: 20px 16px 48px; }
   .hero { padding: 36px 24px; }
   .hero h1 { font-size: 26px; }
