@@ -40,6 +40,7 @@ public enum ErrorCode {
 
     // 메시지함
     MESSAGE_NOT_FOUND(HttpStatus.NOT_FOUND, "메시지를 찾을 수 없습니다."),
+    CHAT_NOT_FOUND(HttpStatus.NOT_FOUND, "채팅방을 찾을 수 없습니다."),
     TOO_MANY_REQUESTS(HttpStatus.SERVICE_UNAVAILABLE, "요청이 많아 처리하지 못했습니다. 다시 시도해 주세요.");
 
     private final HttpStatus status;

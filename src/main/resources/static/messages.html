@@ -22,16 +22,21 @@
   <main class="container">
     <div class="page-head">
       <h1>메시지함</h1>
-      <p>구매·취소·변경 알림과 상품 문의 쪽지를 모아 봅니다. 메시지를 누르면 읽음으로 바뀝니다.</p>
+      <p>구매·취소·변경 알림과 상품 문의 채팅을 모아 봅니다.</p>
     </div>
     <div class="tabs message-tabs" id="message-tabs">
-      <button type="button" class="tab" data-box="NOTICE">알림<em class="nav-count" hidden></em></button>
-      <button type="button" class="tab" data-box="INBOX">받은 쪽지<em class="nav-count" hidden></em></button>
-      <button type="button" class="tab" data-box="SENT">보낸 쪽지</button>
+      <button type="button" class="tab" data-tab="notice">알림<em class="nav-count" hidden></em></button>
+      <button type="button" class="tab" data-tab="chat">채팅<em class="nav-count" hidden></em></button>
       <button type="button" class="btn-text read-all" id="read-all">모두 읽음</button>
     </div>
     <p class="message" id="page-message"></p>
-    <div id="message-list"><p class="loading">메시지를 불러오는 중입니다...</p></div>
+    <div id="notice-pane"><p class="loading">알림을 불러오는 중입니다...</p></div>
+    <div class="chat-layout" id="chat-pane" hidden>
+      <aside class="chat-list" id="chat-list"><p class="loading">채팅을 불러오는 중입니다...</p></aside>
+      <section class="chat-room" id="chat-room">
+        <div class="chat-empty">왼쪽에서 대화를 고르거나, 상품 상세의 "판매자에게 문의"로 대화를 시작하세요.</div>
+      </section>
+    </div>
   </main>
 
   <script src="/js/api.js"></script>

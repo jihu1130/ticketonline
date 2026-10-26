@@ -22,14 +22,11 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 /**
- * 메시지함 한 건: 알림(NOTICE, 보낸 사람 없음) 또는 쪽지(DIRECT).
- * 받는 사람의 목록·안 읽은 개수를 자주 세므로 (받는 사람, 종류, 읽은 시각) 인덱스를 둔다.
+ * 메시지함 알림 한 건 (구매·취소·변경 완료, 내 상품 매진).
+ * 받는 사람의 목록·안 읽은 개수를 자주 세므로 (받는 사람, 읽은 시각) 인덱스를 둔다.
  */
 @Entity
-@Table(name = "message", indexes = {
-        @Index(name = "idx_message_receiver", columnList = "receiver_id, type, read_at"),
-        @Index(name = "idx_message_sender", columnList = "sender_id")
-})
+@Table(name = "message", indexes = @Index(name = "idx_message_receiver", columnList = "receiver_id, type, read_at"))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class Message {
@@ -42,11 +39,6 @@ public class Message {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "receiver_id", nullable = false)
     private Member receiver;
-
-    /** 쪽지를 보낸 회원 (알림이면 null) */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "sender_id")
-    private Member sender;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
@@ -68,10 +60,9 @@ public class Message {
     private LocalDateTime createdAt;
 
     @Builder
-    private Message(Member receiver, Member sender, MessageType type, Product product, String content) {
+    private Message(Member receiver, Product product, String content) {
         this.receiver = receiver;
-        this.sender = sender;
-        this.type = type;
+        this.type = MessageType.NOTICE;
         this.product = product;
         this.content = content;
     }

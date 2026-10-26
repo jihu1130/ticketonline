@@ -43,12 +43,8 @@ function render() {
         <div id="goods-stock"></div>
         <button class="btn" type="button" id="book-button"></button>
         <p class="hint buy-hint">${isTicket ? "회차와 좌석 등급은 예매 화면에서 고릅니다." : "수량과 배송지는 구매 화면에서 입력합니다."}</p>
-        <button class="btn btn-secondary inquiry-toggle" type="button" id="inquiry-button">판매자에게 문의</button>
-        <div class="inquiry-form" id="inquiry-form" hidden>
-          <textarea maxlength="1000" placeholder="문의 내용을 입력해 주세요. 답장은 메시지함의 받은 쪽지로 옵니다."></textarea>
-          <button class="btn-small primary" type="button" id="inquiry-send">문의 보내기</button>
-          <p class="message" id="inquiry-message"></p>
-        </div>
+        <button class="btn btn-secondary inquiry-toggle" type="button" id="inquiry-button">판매자에게 문의 (채팅)</button>
+        <p class="message" id="inquiry-message"></p>
       </div>
     </div>
     ${isTicket ? `
@@ -73,29 +69,17 @@ function render() {
   renderStock();
 }
 
-/** 판매자에게 문의: 로그인하지 않았으면 로그인 후 이 화면으로 돌아온다 */
+/** 판매자에게 문의: 이 상품의 채팅방을 열고(없으면 만들고) 메시지함 채팅으로 이동. 로그인하지 않았으면 로그인 후 돌아온다 */
 function bindInquiry() {
-  const form = document.getElementById("inquiry-form");
-  const textarea = form.querySelector("textarea");
   const message = document.getElementById("inquiry-message");
-  document.getElementById("inquiry-button").addEventListener("click", () => {
+  document.getElementById("inquiry-button").addEventListener("click", async () => {
     if (!auth.token()) {
       location.href = `/login.html?redirect=${encodeURIComponent(location.pathname + location.search)}`;
       return;
     }
-    form.hidden = !form.hidden;
-    if (!form.hidden) textarea.focus();
-  });
-  document.getElementById("inquiry-send").addEventListener("click", async () => {
-    const content = textarea.value.trim();
-    if (!content) {
-      showMessage(message, "문의 내용을 입력해 주세요.");
-      return;
-    }
     try {
-      await api("/api/messages", { method: "POST", body: { productId: product.id, content } });
-      textarea.value = "";
-      showMessage(message, "문의를 보냈습니다. 메시지함의 보낸 쪽지에서 확인할 수 있습니다.", "success");
+      const room = await api("/api/chats", { method: "POST", body: { productId: product.id } });
+      location.href = `/messages.html?tab=chat&room=${room.id}`;
     } catch (e) {
       showMessage(message, e.message);
     }

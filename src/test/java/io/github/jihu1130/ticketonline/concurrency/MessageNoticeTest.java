@@ -3,7 +3,6 @@ package io.github.jihu1130.ticketonline.concurrency;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import io.github.jihu1130.ticketonline.domain.message.dto.MessageBox;
 import io.github.jihu1130.ticketonline.domain.message.dto.MessageResponse;
 import io.github.jihu1130.ticketonline.domain.message.service.MessageService;
 import io.github.jihu1130.ticketonline.domain.order.dto.OrderRequest;
@@ -17,9 +16,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 /**
- * 메시지함 (실제 DB).
+ * 메시지함 알림 (실제 DB).
  * 알림: 구매·취소가 커밋된 뒤 다른 스레드에서 저장되므로 잠깐 기다리며 확인한다.
- * 쪽지: 문의 -> 판매자 받은 쪽지 -> 답장 -> 구매자 받은 쪽지, 안 읽은 개수와 읽음.
  */
 class MessageNoticeTest extends ConcurrencyTestSupport {
 
@@ -32,13 +30,13 @@ class MessageNoticeTest extends ConcurrencyTestSupport {
         Long buyer = createMembers(1).get(0);
 
         OrderResponse order = purchaseFacade.purchase(buyer, goods.productId(), new OrderRequest(goods.saleItemId(), 2, null));
-        List<MessageResponse> afterBuy = waitFor(() -> messageService.getMessages(buyer, MessageBox.NOTICE), 1);
+        List<MessageResponse> afterBuy = waitFor(() -> messageService.getNotices(buyer), 1);
         assertThat(afterBuy.get(0).content()).contains("2개 구매가 확정되었습니다", "주문번호 " + order.orderId());
         assertThat(afterBuy.get(0).productId()).isEqualTo(goods.productId());
-        assertThat(afterBuy.get(0).senderName()).isNull();
+        assertThat(afterBuy.get(0).read()).isFalse();
 
         orderChangeService.cancel(buyer, order.orderId());
-        List<MessageResponse> afterCancel = waitFor(() -> messageService.getMessages(buyer, MessageBox.NOTICE), 2);
+        List<MessageResponse> afterCancel = waitFor(() -> messageService.getNotices(buyer), 2);
         assertThat(afterCancel.get(0).content()).contains("주문을 취소했습니다");
         assertThat(messageService.countUnread(buyer).notice()).isEqualTo(2);
     }
@@ -54,41 +52,12 @@ class MessageNoticeTest extends ConcurrencyTestSupport {
                 new OrderRequest(goods.saleItemId(), 1, null)))
                 .isInstanceOf(CustomException.class).extracting("errorCode").isEqualTo(ErrorCode.SOLD_OUT);
 
-        List<MessageResponse> sellerNotices = waitFor(() -> messageService.getMessages(seller, MessageBox.NOTICE), 1);
+        List<MessageResponse> sellerNotices = waitFor(() -> messageService.getNotices(seller), 1);
         assertThat(sellerNotices).hasSize(1);
         assertThat(sellerNotices.get(0).content()).contains("매진되었습니다");
         // 실패한 구매(매진)는 알림이 없다: 첫 구매자는 자기 구매 알림 1건만
         sleep(300);
-        assertThat(messageService.getMessages(buyers.get(0), MessageBox.NOTICE)).hasSize(1);
-    }
-
-    @Test
-    void inquiryAndReply_betweenBuyerAndSeller() {
-        GoodsFixture goods = createGoods(10, 2);
-        Long seller = sellerOf(goods.productId());
-        Long buyer = createMembers(1).get(0);
-
-        MessageResponse question = messageService.send(buyer, goods.productId(), "배송은 언제 되나요?");
-
-        assertThat(messageService.getMessages(buyer, MessageBox.SENT)).extracting(MessageResponse::id)
-                .containsExactly(question.id());
-        List<MessageResponse> sellerInbox = messageService.getMessages(seller, MessageBox.INBOX);
-        assertThat(sellerInbox).hasSize(1);
-        assertThat(sellerInbox.get(0).canReply()).isTrue();
-        assertThat(sellerInbox.get(0).read()).isFalse();
-        assertThat(messageService.countUnread(seller).inbox()).isEqualTo(1);
-
-        messageService.markRead(seller, question.id());
-        assertThat(messageService.countUnread(seller).inbox()).isZero();
-
-        messageService.reply(seller, question.id(), "내일 보내 드립니다.");
-        List<MessageResponse> buyerInbox = messageService.getMessages(buyer, MessageBox.INBOX);
-        assertThat(buyerInbox).hasSize(1);
-        assertThat(buyerInbox.get(0).content()).isEqualTo("내일 보내 드립니다.");
-        assertThat(buyerInbox.get(0).productId()).isEqualTo(goods.productId());
-
-        assertThat(messageService.markAllRead(buyer, MessageBox.INBOX).inbox()).isZero();
-        assertThat(messageService.getMessages(buyer, MessageBox.INBOX).get(0).read()).isTrue();
+        assertThat(messageService.getNotices(buyers.get(0))).hasSize(1);
     }
 
     private Long sellerOf(Long productId) {
