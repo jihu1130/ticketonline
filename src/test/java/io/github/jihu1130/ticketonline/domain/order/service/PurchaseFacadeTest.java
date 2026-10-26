@@ -29,7 +29,7 @@ class PurchaseFacadeTest {
     private final QueueService queueService = Mockito.mock(QueueService.class);
     private final OrderRequest request = new OrderRequest(1L, 1, null);
     private final OrderResponse ok = new OrderResponse(1L, 10L, null, "상품", null, null, null,
-            1, 1000, 1000, null, null, null);
+            1, 1000, 1000, null, null, null, 1L, null, null);
 
     @Test
     void optimistic_retriesAfterConflictAndSucceeds() {

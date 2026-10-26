@@ -32,6 +32,11 @@ public enum ErrorCode {
     INSUFFICIENT_STOCK(HttpStatus.CONFLICT, "남은 수량보다 많이 구매할 수 없습니다."),
     LIMIT_EXCEEDED(HttpStatus.CONFLICT, "1인당 구매할 수 있는 수량을 넘었습니다."),
     NOT_ADMITTED(HttpStatus.FORBIDDEN, "대기 순서가 되면 구매할 수 있습니다."),
+
+    // 주문 취소·변경
+    ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "주문을 찾을 수 없습니다."),
+    ALREADY_CANCELED(HttpStatus.CONFLICT, "이미 취소된 주문입니다."),
+    CHANGE_CLOSED(HttpStatus.BAD_REQUEST, "취소·변경할 수 있는 기간이 지났습니다."),
     TOO_MANY_REQUESTS(HttpStatus.SERVICE_UNAVAILABLE, "요청이 많아 처리하지 못했습니다. 다시 시도해 주세요.");
 
     private final HttpStatus status;

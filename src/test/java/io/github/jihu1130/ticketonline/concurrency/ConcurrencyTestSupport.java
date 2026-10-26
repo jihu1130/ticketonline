@@ -81,9 +81,13 @@ public abstract class ConcurrencyTestSupport {
 
     /** 판매 중인 굿즈 (현장 수령이라 주소 없음). 반환: 상품 번호와 판매 단위 번호 */
     protected GoodsFixture createGoods(int stock, int maxPerPerson) {
+        return createGoods(stock, maxPerPerson, DeliveryType.PICKUP);
+    }
+
+    protected GoodsFixture createGoods(int stock, int maxPerPerson, DeliveryType deliveryType) {
         Product product = productRepository.save(onSaleProduct(ProductType.GOODS, maxPerPerson));
         goodsDetailRepository.save(GoodsDetail.builder().product(product).description("동시성 테스트")
-                .deliveryType(DeliveryType.PICKUP).build());
+                .deliveryType(deliveryType).build());
         SaleItem item = saleItemRepository.save(SaleItem.builder().product(product).price(10000)
                 .totalQuantity(stock).build());
         return new GoodsFixture(product.getId(), item.getId());
@@ -106,6 +110,33 @@ public abstract class ConcurrencyTestSupport {
         return new TicketFixture(product.getId(), performance.getId(), itemIds);
     }
 
+    /**
+     * 판매 중인 티켓 (회차 2개 x 등급 2개, 좌석 수는 모두 seatCount).
+     * saleItemIds 순서: 1회차 등급0, 1회차 등급1, 2회차 등급0, 2회차 등급1 (등급0 = 10000원, 등급1 = 20000원)
+     */
+    protected TwoPerformanceTicket createTicketTwoPerformances(int maxPerPerson, int seatCount) {
+        Product product = productRepository.save(onSaleProduct(ProductType.TICKET, maxPerPerson));
+        ticketDetailRepository.save(TicketDetail.builder().product(product).venue("테스트홀")
+                .closeBeforeHours(1).build());
+        List<SeatGrade> grades = new ArrayList<>();
+        for (int i = 0; i < 2; i++) {
+            grades.add(seatGradeRepository.save(SeatGrade.builder().product(product).name("등급" + i)
+                    .price(10000 * (i + 1)).seatCount(seatCount).build()));
+        }
+        List<Long> performanceIds = new ArrayList<>();
+        List<Long> itemIds = new ArrayList<>();
+        for (int day = 3; day <= 4; day++) {
+            Performance performance = performanceRepository.save(Performance.builder().product(product)
+                    .eventAt(LocalDateTime.now().plusDays(day)).build());
+            performanceIds.add(performance.getId());
+            for (SeatGrade grade : grades) {
+                itemIds.add(saleItemRepository.save(SaleItem.builder().product(product).performance(performance)
+                        .seatGrade(grade).price(grade.getPrice()).totalQuantity(seatCount).build()).getId());
+            }
+        }
+        return new TwoPerformanceTicket(product.getId(), performanceIds, itemIds);
+    }
+
     private Product onSaleProduct(ProductType type, int maxPerPerson) {
         Long sellerId = createMembers(1).get(0);
         return Product.builder()
@@ -122,6 +153,9 @@ public abstract class ConcurrencyTestSupport {
     }
 
     protected record TicketFixture(Long productId, Long performanceId, List<Long> saleItemIds) {
+    }
+
+    protected record TwoPerformanceTicket(Long productId, List<Long> performanceIds, List<Long> saleItemIds) {
     }
 
     // ---------- 동시 실행 ----------
@@ -220,14 +254,16 @@ public abstract class ConcurrencyTestSupport {
         return jdbc.queryForObject("select total_quantity from sale_item where sale_item_id = ?", Integer.class, saleItemId);
     }
 
-    /** 이 판매 단위로 저장된 주문 수량 합계 */
+    /** 이 판매 단위로 저장된 주문 수량 합계 (취소된 주문 제외) */
     protected int orderedQuantity(Long saleItemId) {
-        return jdbc.queryForObject("select coalesce(sum(quantity), 0) from product_order where sale_item_id = ?",
-                Integer.class, saleItemId);
+        return jdbc.queryForObject("select coalesce(sum(quantity), 0) from product_order"
+                + " where sale_item_id = ? and status = 'SUCCESS'", Integer.class, saleItemId);
     }
 
+    /** 취소된 주문 제외 */
     protected int orderCount(Long saleItemId) {
-        return jdbc.queryForObject("select count(*) from product_order where sale_item_id = ?", Integer.class, saleItemId);
+        return jdbc.queryForObject("select count(*) from product_order where sale_item_id = ? and status = 'SUCCESS'",
+                Integer.class, saleItemId);
     }
 
     /** 1인 한도 기록 (회원 + 상품 + 범위) */

@@ -2,6 +2,7 @@ package io.github.jihu1130.ticketonline.domain.order.service;
 
 import io.github.jihu1130.ticketonline.domain.order.dto.OrderRequest;
 import io.github.jihu1130.ticketonline.domain.order.dto.OrderResponse;
+import io.github.jihu1130.ticketonline.domain.order.entity.ProductOrder;
 import io.github.jihu1130.ticketonline.domain.order.entity.PurchaseCountId;
 import io.github.jihu1130.ticketonline.domain.order.repository.ProductOrderRepository;
 import io.github.jihu1130.ticketonline.domain.product.entity.DeliveryType;
@@ -20,6 +21,8 @@ import io.github.jihu1130.ticketonline.global.exception.CustomException;
 import io.github.jihu1130.ticketonline.global.exception.ErrorCode;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -73,11 +76,31 @@ public class OrderService {
         return OrderResponse.from(purchaseProcessor.process(command));
     }
 
-    /** 내 구매 내역 (최근 순) */
+    /** 내 구매 내역 (최근 순). 주문마다 취소·변경 기한(티켓은 회차 예매 마감, 굿즈는 판매 종료)을 함께 준다 */
     public List<OrderResponse> getMyOrders(Long memberId) {
-        return productOrderRepository.findMyOrders(memberId).stream()
-                .map(OrderResponse::from)
+        List<ProductOrder> orders = productOrderRepository.findMyOrders(memberId);
+        // 티켓의 "공연 몇 시간 전 마감"은 상품마다 한 번만 읽는다
+        List<Long> ticketIds = orders.stream()
+                .map(o -> o.getSaleItem().getProduct())
+                .filter(p -> p.getType() == ProductType.TICKET)
+                .map(Product::getId)
+                .distinct()
                 .toList();
+        Map<Long, Integer> closeHours = ticketDetailRepository.findAllById(ticketIds).stream()
+                .collect(Collectors.toMap(t -> t.getProduct().getId(), TicketDetail::getCloseBeforeHours));
+        return orders.stream()
+                .map(order -> OrderResponse.from(order, changeableUntil(order, closeHours)))
+                .toList();
+    }
+
+    private static LocalDateTime changeableUntil(ProductOrder order, Map<Long, Integer> closeHours) {
+        Product product = order.getSaleItem().getProduct();
+        Performance performance = order.getSaleItem().getPerformance();
+        if (performance == null) {
+            return product.getSaleEndAt();
+        }
+        return Performance.bookingCloseAt(performance.getEventAt(), product.getSaleEndAt(),
+                closeHours.getOrDefault(product.getId(), 0));
     }
 
     /** 구매할 판매 단위. 티켓은 회차 x 등급을 골라야 하고, 굿즈는 생략하면 상품의 판매 단위 1개 */

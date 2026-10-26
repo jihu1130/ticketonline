@@ -85,4 +85,12 @@ public class SaleItem {
         }
         this.soldQuantity += quantity;
     }
+
+    /** 주문 취소·수량 줄이기로 판매 수량을 되돌린다 */
+    public void restore(int quantity) {
+        if (quantity <= 0 || quantity > soldQuantity) {
+            throw new IllegalStateException("판매한 수량보다 많이 되돌릴 수 없습니다: " + quantity);
+        }
+        this.soldQuantity -= quantity;
+    }
 }

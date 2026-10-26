@@ -13,6 +13,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
@@ -62,6 +63,9 @@ public class ProductOrder {
     @Column(nullable = false, updatable = false)
     private LocalDateTime orderedAt;
 
+    /** 마지막으로 취소·변경한 시각 (한 번도 안 바꿨으면 null) */
+    private LocalDateTime updatedAt;
+
     /** 결제 기능이 없어 바로 구매 확정(SUCCESS)으로 만든다. */
     @Builder
     private ProductOrder(SaleItem saleItem, Member member, int quantity, String address) {
@@ -77,8 +81,44 @@ public class ProductOrder {
         return unitPrice * quantity;
     }
 
+    public boolean isOrderedBy(Long memberId) {
+        return member.getId().equals(memberId);
+    }
+
+    public boolean isCanceled() {
+        return status == OrderStatus.CANCELED;
+    }
+
+    /** 전체 취소. 재고·1인 한도 되돌리기는 서비스에서 잠금을 잡고 한다 */
+    public void cancel() {
+        this.status = OrderStatus.CANCELED;
+    }
+
+    /** 수량 줄이기 (부분 취소). 1개 이상, 지금보다 적게 */
+    public void reduceQuantity(int quantity) {
+        if (quantity < 1 || quantity >= this.quantity) {
+            throw new IllegalStateException("수량은 1개 이상, 지금보다 적게만 줄일 수 있습니다: " + quantity);
+        }
+        this.quantity = quantity;
+    }
+
+    public void changeAddress(String address) {
+        this.address = address;
+    }
+
+    /** 회차·등급 바꾸기. 가격은 바꾼 쪽 가격으로 */
+    public void changeSaleItem(SaleItem saleItem) {
+        this.saleItem = saleItem;
+        this.unitPrice = saleItem.getPrice();
+    }
+
     @PrePersist
     private void onCreate() {
         this.orderedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    private void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
     }
 }

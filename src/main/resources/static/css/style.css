@@ -480,6 +480,18 @@ a.btn { display: block; text-align: center; text-decoration: none; }
 .order-meta { margin: 2px 0; font-size: 13px; color: var(--sub); }
 .order-meta.muted { color: var(--muted); }
 .order-price { flex: none; font-size: 18px; font-weight: 800; color: var(--navy); }
+.order-item { flex-wrap: wrap; }
+.order-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding-top: 12px; border-top: 1px solid var(--line); }
+.order-deadline { font-size: 12px; color: var(--muted); }
+.order-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+.order-edit { width: 100%; padding: 14px 16px; background: var(--bg); border-radius: 10px; }
+.order-edit .message { text-align: left; }
+.edit-label { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 700; color: var(--text); }
+.edit-label .hint { margin-left: 6px; font-weight: 400; }
+.edit-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.edit-row select, .edit-row input { flex: 1 1 160px; min-width: 0; padding: 8px 10px; font: inherit; font-size: 14px; background: var(--card); border: 1.5px solid var(--line); border-radius: 8px; }
+.btn-small.primary { color: #fff; background: var(--primary); border-color: var(--primary); }
+.btn-small.primary:hover { color: #fff; filter: brightness(1.08); }
 
 /* ── 화면이 좁을 때 ── */
 @media (max-width: 860px) {

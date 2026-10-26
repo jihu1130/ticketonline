@@ -74,6 +74,14 @@ public class PurchaseCount {
         this.boughtQuantity += quantity;
     }
 
+    /** 주문 취소·수량 줄이기로 산 수량을 되돌린다 (다시 그만큼 살 수 있다) */
+    public void subtract(int quantity) {
+        if (quantity <= 0 || quantity > boughtQuantity) {
+            throw new IllegalStateException("산 수량보다 많이 되돌릴 수 없습니다: " + quantity);
+        }
+        this.boughtQuantity -= quantity;
+    }
+
     @PrePersist
     @PreUpdate
     private void onSave() {
