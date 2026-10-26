@@ -23,6 +23,11 @@ spring:
       # 사진 1장 5MB 제한 (ImageService.MAX_BYTES와 같게)
       max-file-size: 5MB
       max-request-size: 6MB
+  data:
+    redis:
+      # 대기열 (C:\redis 에서 redis-server.exe redis.windows.conf 로 실행)
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
 
 app:
   upload:
@@ -32,6 +37,15 @@ app:
     # 구매 동시성 처리 방식 (성능 비교용)
     # pessimistic: A 비관적 락 (SELECT ... FOR UPDATE) / optimistic: B 낙관적 락 (@Version, 최대 3번 시도)
     strategy: ${PURCHASE_STRATEGY:pessimistic}
+  queue:
+    # 구매하기 -> 대기열 -> 입장한 사람만 예매 화면에서 구매. k6 로 A/B/C 를 비교할 때는 false
+    enabled: ${QUEUE_ENABLED:true}
+    # 1초마다 앞에서부터 몇 명을 입장시킬지
+    admit-per-second: ${QUEUE_ADMIT_PER_SECOND:50}
+    # 입장한 뒤 예매 화면을 쓸 수 있는 시간
+    admitted-seconds: 300
+    # 이 시간 동안 순번 확인이 없으면 화면을 닫은 것으로 보고 줄에서 뺀다
+    stale-seconds: 30
 
 jwt:
   # 토큰 서명 비밀키(jwt.secret)는 application-secret.yaml 에만 적는다.

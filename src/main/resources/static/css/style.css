@@ -450,6 +450,23 @@ a.btn { display: block; text-align: center; text-decoration: none; }
 .done-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .done-actions .btn-secondary { margin-top: 0; }
 
+/* ── 대기열 ── */
+.queue-box { max-width: 520px; margin: 24px auto; text-align: center; }
+.queue-box h1 { margin: 4px 0 6px; font-size: 24px; font-weight: 800; color: var(--navy); }
+.queue-product { margin: 0; font-size: 14px; font-weight: 700; color: var(--primary); }
+.queue-rank { margin: 26px 0 16px; }
+.queue-rank span { display: block; font-size: 14px; color: var(--sub); }
+.queue-rank strong { display: block; margin-top: 4px; font-size: 52px; font-weight: 800; line-height: 1.1; color: var(--navy); }
+.queue-rank em { margin-left: 4px; font-size: 18px; font-style: normal; font-weight: 700; color: var(--sub); }
+.queue-bar { height: 10px; overflow: hidden; background: var(--bg); border-radius: 999px; }
+.queue-bar div { height: 100%; background: var(--grad); border-radius: 999px; transition: width .6s ease; }
+.queue-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 20px 0; }
+.queue-stats div { padding: 12px 6px; background: var(--bg); border-radius: 10px; }
+.queue-stats dt { font-size: 12px; color: var(--muted); }
+.queue-stats dd { margin: 4px 0 0; font-size: 16px; font-weight: 800; color: var(--text); }
+.queue-note { margin: 0 0 16px; font-size: 13px; color: var(--muted); }
+.queue-box .btn-secondary { margin-top: 0; }
+
 /* ── 구매 내역 ── */
 .order-list { display: flex; flex-direction: column; gap: 12px; }
 .order-item { display: flex; align-items: center; gap: 18px; padding: 18px 22px; background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); }

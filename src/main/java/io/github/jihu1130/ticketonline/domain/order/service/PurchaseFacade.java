@@ -2,6 +2,7 @@ package io.github.jihu1130.ticketonline.domain.order.service;
 
 import io.github.jihu1130.ticketonline.domain.order.dto.OrderRequest;
 import io.github.jihu1130.ticketonline.domain.order.dto.OrderResponse;
+import io.github.jihu1130.ticketonline.domain.queue.service.QueueService;
 import io.github.jihu1130.ticketonline.global.exception.CustomException;
 import io.github.jihu1130.ticketonline.global.exception.ErrorCode;
 import java.util.concurrent.ThreadLocalRandom;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Component;
  * 다시 시도는 트랜잭션 바깥에서 해야 한다. 충돌은 커밋할 때 드러나고, 그 트랜잭션은 이미 끝났기 때문이다.
  * 그래서 여기는 @Transactional 을 붙이지 않고, 매 시도마다 OrderService.purchase 가 새 트랜잭션을 연다.
  * 다 실패하면 TOO_MANY_REQUESTS("요청이 많아 처리하지 못했습니다. 다시 시도해 주세요.")
+ * 그 전에 대기열에서 입장한 사람인지 확인한다 (아니면 NOT_ADMITTED, 대기열을 끄면 건너뜀).
  */
 @Slf4j
 @Component
@@ -25,8 +27,10 @@ public class PurchaseFacade {
 
     private final OrderService orderService;
     private final PurchaseProcessor purchaseProcessor;
+    private final QueueService queueService;
 
     public OrderResponse purchase(Long memberId, Long productId, OrderRequest request) {
+        queueService.checkAdmitted(memberId, productId);
         int maxAttempts = purchaseProcessor.maxAttempts();
         for (int attempt = 1; ; attempt++) {
             try {

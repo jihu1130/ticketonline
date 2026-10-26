@@ -1,7 +1,6 @@
 // 상품 상세: 사진, 기본 정보, (티켓) 회차별 등급·남은 좌석, 좌석 배치도, 설명
 // 남은 수량과 판매 상태는 3초마다 다시 불러온다.
-// 구매는 "예매하기/구매하기" 버튼으로 예매 화면(booking.html)에서 한다.
-// (9단계 이후에는 이 버튼이 대기열을 거쳐 예매 화면으로 들어가게 된다)
+// 구매는 "예매하기/구매하기" 버튼 -> 대기열(queue.html) -> 입장 후 예매 화면(booking.html)에서 한다.
 
 const REFRESH_MS = 3000;
 const CLOSED_LABEL = { UPCOMING: "판매 예정", SOLD_OUT: "매진", ENDED: "판매 종료" };
@@ -96,9 +95,9 @@ function bindGallery() {
   }));
 }
 
-/** 예매 화면으로. 로그인하지 않았으면 로그인한 뒤 예매 화면으로 돌아온다 */
+/** 대기열을 거쳐 예매 화면으로. 로그인하지 않았으면 로그인한 뒤 대기열로 돌아온다 */
 function goBooking() {
-  const target = `/booking.html?id=${product.id}`;
+  const target = `/queue.html?id=${product.id}`;
   location.href = auth.token() ? target : `/login.html?redirect=${encodeURIComponent(target)}`;
 }
 

@@ -12,6 +12,14 @@ spring:
     # 동시성 테스트는 쿼리가 수천 개라 출력하지 않는다
     show-sql: false
 
+  data:
+    redis:
+      # 개발용 대기열과 섞이지 않게 다른 번호의 DB 를 쓴다 (QueueServiceTest)
+      database: 15
+
 app:
   upload:
     dir: build/test-uploads
+  queue:
+    # 구매 테스트는 대기열을 건너뛴다. 대기열은 QueueServiceTest 에서 따로 확인
+    enabled: false

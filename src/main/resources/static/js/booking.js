@@ -1,6 +1,6 @@
 // 예매 화면 (F-04): 티켓은 회차 -> 좌석 등급 -> 수량, 굿즈는 수량 -> (택배면) 배송지를 고르고 구매한다.
 // 결제 기능 없이 바로 구매가 확정된다. 남은 수량은 3초마다 다시 불러오고, 고른 값은 그대로 둔다.
-// (9단계 이후에는 대기열에서 입장한 사람만 이 화면을 쓸 수 있게 된다)
+// 대기열에서 입장한 사람만 쓸 수 있다. 입장하지 않았거나 입장 시간이 끝나면 대기열 화면으로 돌려보낸다.
 
 const REFRESH_MS = 3000;
 const MAX_PER_ORDER = 100; // 서버 OrderRequest 와 같은 값
@@ -93,6 +93,7 @@ function render() {
         </div>
         <button class="btn" type="button" id="buy-button">구매하기</button>
         <p class="hint buy-hint">결제 기능 없이 바로 구매가 확정됩니다.</p>
+        <p class="hint buy-hint" id="admit-left"></p>
         <p class="message" id="buy-message"></p>
       </section>
     </div>`;
@@ -287,6 +288,10 @@ async function buy() {
       location.href = `/login.html?redirect=${encodeURIComponent(location.pathname + location.search)}`;
       return;
     }
+    if (e.code === "NOT_ADMITTED") {
+      goQueue();
+      return;
+    }
     showMessage(message, e.message);
     await reload();
   }
@@ -331,12 +336,45 @@ async function load() {
     return;
   }
   try {
+    const queue = await api(`/api/products/${encodeURIComponent(productId)}/queue/me`);
+    if (queue.status !== "ADMITTED") {
+      goQueue();
+      return;
+    }
     product = await api(`/api/products/${encodeURIComponent(productId)}`);
     render();
-    if (product.status === "ON_SALE") refreshTimer = setInterval(refresh, REFRESH_MS);
+    if (product.status === "ON_SALE") {
+      refreshTimer = setInterval(refresh, REFRESH_MS);
+      startAdmitTimer(queue.admittedSeconds);
+    }
   } catch (e) {
     showError(e.message);
   }
+}
+
+/** 대기열로 돌아가 다시 줄을 선다 (입장하지 않았거나 입장 시간이 끝남) */
+function goQueue() {
+  location.replace(`/queue.html?id=${encodeURIComponent(productId)}`);
+}
+
+/** 입장 후 예매 화면을 쓸 수 있는 남은 시간 표시. 끝나면 대기열로 (대기열을 끈 경우 seconds = null) */
+function startAdmitTimer(seconds) {
+  if (seconds == null) return;
+  const endAt = Date.now() + seconds * 1000;
+  let admitTimer = null;
+  const tick = () => {
+    if (done) return;
+    const left = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
+    const box = document.getElementById("admit-left");
+    if (box) box.textContent = `예매 가능 시간 ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")} 남음`;
+    if (left === 0) {
+      clearInterval(admitTimer);
+      alert("예매 가능 시간이 끝났습니다. 대기열에서 다시 순서를 기다려 주세요.");
+      goQueue();
+    }
+  };
+  admitTimer = setInterval(tick, 1000);
+  tick();
 }
 
 async function refresh() {
