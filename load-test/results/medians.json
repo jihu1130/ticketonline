@@ -1,0 +1,29 @@
+{
+  "pessimistic": {
+    "tps": 2597.4,
+    "p95_ms": 352.8,
+    "error_rate": 0.0,
+    "success": 100,
+    "sold_out": 900,
+    "server_errors": 0,
+    "oversell": 0
+  },
+  "optimistic": {
+    "tps": 1876.2,
+    "p95_ms": 513.0,
+    "error_rate": 0.0,
+    "success": 100,
+    "sold_out": 900,
+    "server_errors": 0,
+    "oversell": 0
+  },
+  "redis": {
+    "tps": 1838.2,
+    "p95_ms": 529.5,
+    "error_rate": 0.0,
+    "success": 100,
+    "sold_out": 900,
+    "server_errors": 0,
+    "oversell": 0
+  }
+}

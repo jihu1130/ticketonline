@@ -42,6 +42,9 @@ application-secret.yaml
 ### 업로드한 상품 사진 ###
 uploads/
 
+### 부하 테스트 작업 파일 (테스트 회원 토큰, 서버 로그) ###
+load-test/work/
+
 ### 커밋하지 않는 개인 문서 ###
 docs/
 CLAUDE.local.md
