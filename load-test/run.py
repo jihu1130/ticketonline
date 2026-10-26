@@ -84,9 +84,28 @@ def build_jar():
     return next(p for p in (ROOT / "build/libs").glob("*.jar") if not p.name.endswith("-plain.jar"))
 
 
+def java_exe():
+    """JDK 의 java.exe 를 직접 쓴다. PATH 의 java 가 Oracle 실행기(javapath)면 그 실행기만 꺼지고 서버가 남는다"""
+    home = os.environ.get("JAVA_HOME")
+    candidates = [Path(home) / "bin" / "java.exe"] if home else []
+    candidates += [Path(r"C:\Program Files\Java\jdk-21\bin\java.exe")]
+    return next((str(p) for p in candidates if p.exists()), "java")
+
+
+def port_in_use():
+    try:
+        call("GET", "/api/products")
+        return True
+    except OSError:
+        return False
+
+
 def start_server(jar, strategy):
+    # 이전 실행의 서버가 남아 있으면 그 서버를 재게 되므로 멈춘다
+    if port_in_use():
+        raise RuntimeError(f"{PORT} 포트를 이미 다른 서버가 쓰고 있습니다. 그 서버를 끄고 다시 실행하세요.")
     log = open(WORK / f"server-{strategy}.log", "w", encoding="utf-8")
-    args = ["java", "-jar", str(jar),
+    args = [java_exe(), "-jar", str(jar),
             f"--server.port={PORT}",
             f"--app.purchase.strategy={strategy}",
             "--app.queue.enabled=false",
@@ -104,7 +123,7 @@ def start_server(jar, strategy):
         if proc.poll() is not None:
             raise RuntimeError(f"서버가 꺼졌습니다. {log.name} 를 보세요.")
         try:
-            if call("GET", "/api/products")[0] == 200:
+            if call("GET", "/api/products")[0] == 200 and proc.poll() is None:
                 return proc
         except OSError:
             pass
@@ -117,6 +136,11 @@ def stop_server(proc):
         proc.wait(timeout=30)
     except subprocess.TimeoutExpired:
         proc.kill()
+    for _ in range(30):  # 포트가 비워질 때까지 기다린다 (다음 방식 서버가 같은 포트를 씀)
+        if not port_in_use():
+            return
+        time.sleep(1)
+    raise RuntimeError(f"서버를 껐는데 {PORT} 포트가 아직 응답합니다.")
 
 
 # ---------- 테스트 데이터 ----------
