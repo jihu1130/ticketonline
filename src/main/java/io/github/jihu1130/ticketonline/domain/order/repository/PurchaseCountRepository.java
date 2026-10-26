@@ -25,6 +25,25 @@ public interface PurchaseCountRepository extends JpaRepository<PurchaseCount, Pu
     void insertIfAbsent(@Param("memberId") Long memberId, @Param("productId") Long productId,
                         @Param("scopeId") Long scopeId);
 
+    /**
+     * 구매 방식 C(Redis): 산 수량을 늘린다 (처음 사면 행을 만든다). 이 행에 쓰기 잠금이 걸리므로
+     * 이어서 읽는 findBoughtQuantity 는 같은 트랜잭션 안에서 다른 요청에 방해받지 않는다.
+     */
+    @Modifying
+    @Query(value = "INSERT INTO purchase_count (member_id, product_id, scope_id, bought_quantity, updated_at, version)"
+            + " VALUES (:memberId, :productId, :scopeId, :quantity, NOW(6), 0)"
+            + " ON DUPLICATE KEY UPDATE bought_quantity = bought_quantity + :quantity, updated_at = NOW(6)",
+            nativeQuery = true)
+    void addBought(@Param("memberId") Long memberId, @Param("productId") Long productId,
+                   @Param("scopeId") Long scopeId, @Param("quantity") int quantity);
+
+    /** 방식 C: Redis 에 산 수량이 없을 때 DB 값으로 채운다 (행이 없으면 0) */
+    @Query(value = "SELECT bought_quantity FROM purchase_count"
+            + " WHERE member_id = :memberId AND product_id = :productId AND scope_id = :scopeId",
+            nativeQuery = true)
+    Optional<Integer> findBoughtQuantity(@Param("memberId") Long memberId, @Param("productId") Long productId,
+                                         @Param("scopeId") Long scopeId);
+
     /** 구매 방식 A(비관적 락): 1인 한도 행을 잠근다 */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select c from PurchaseCount c where c.id = :id")

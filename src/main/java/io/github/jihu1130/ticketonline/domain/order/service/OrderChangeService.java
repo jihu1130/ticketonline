@@ -52,6 +52,8 @@ public class OrderChangeService {
     private final TicketDetailRepository ticketDetailRepository;
     private final GoodsDetailRepository goodsDetailRepository;
     private final OrderNotices orderNotices;
+    /** 방식 C 일 때만 커밋 뒤 Redis 재고·산 수량도 같은 만큼 바꾼다 (A·B 에서는 아무 일도 안 함) */
+    private final RedisStock redisStock;
 
     /** 전체 취소: 재고와 1인 한도를 모두 되돌린다 */
     public OrderResponse cancel(Long memberId, Long orderId) {
@@ -63,6 +65,8 @@ public class OrderChangeService {
         item.restore(order.getQuantity());
         count.subtract(order.getQuantity());
         order.cancel();
+        redisStock.restoreAfterCommit(item.getId(), target.product().getId(), scopeOf(target.key()), memberId,
+                order.getQuantity());
         orderNotices.canceled(order);
         return OrderResponse.from(order);
     }
@@ -83,6 +87,7 @@ public class OrderChangeService {
         item.restore(returned);
         count.subtract(returned);
         order.reduceQuantity(quantity);
+        redisStock.restoreAfterCommit(item.getId(), target.product().getId(), scopeOf(target.key()), memberId, returned);
         orderNotices.quantityReduced(order, before);
         return OrderResponse.from(order, target.changeableUntil());
     }
@@ -166,6 +171,8 @@ public class OrderChangeService {
             toCount.add(quantity);
         }
         order.changeSaleItem(toItem);
+        redisStock.moveAfterCommit(from.id(), to.id(), product.getId(), from.performanceId(), to.performanceId(),
+                memberId, quantity);
         orderNotices.itemChanged(order, fromItem);
         return OrderResponse.from(order, toCloseAt);
     }
@@ -209,6 +216,10 @@ public class OrderChangeService {
     }
 
     /** 1인 한도 행 잠금 (회차를 바꿀 때 처음 예매하는 회차면 행을 만든 뒤 잠금) */
+    private static Long scopeOf(SaleItemKey key) {
+        return key.performanceId() == null ? PurchaseCountId.WHOLE_PRODUCT : key.performanceId();
+    }
+
     private PurchaseCount lockCount(Long memberId, Product product, Long performanceId) {
         long scopeId = performanceId == null ? PurchaseCountId.WHOLE_PRODUCT : performanceId;
         purchaseCountRepository.insertIfAbsent(memberId, product.getId(), scopeId);

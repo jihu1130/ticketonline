@@ -30,6 +30,19 @@ public interface SaleItemRepository extends JpaRepository<SaleItem, Long> {
             + " from SaleItem s left join s.performance p where s.product.id = :productId order by s.id")
     List<SaleItemKey> findKeysByProductId(@Param("productId") Long productId);
 
+    /**
+     * 구매 방식 C(Redis): Redis 에서 통과한 요청만 DB 판매 수량을 늘린다.
+     * 총 수량을 넘으면 바꾸지 않는다(0 반환) -> Redis 와 DB 가 잠깐 어긋나도 DB 에서 초과 판매를 막는 마지막 안전장치.
+     */
+    @Modifying
+    @Query("update SaleItem s set s.soldQuantity = s.soldQuantity + :quantity"
+            + " where s.id = :id and s.soldQuantity + :quantity <= s.totalQuantity")
+    int sellIfAvailable(@Param("id") Long id, @Param("quantity") int quantity);
+
+    /** 방식 C: Redis 에 남은 수량이 없을 때 DB 값으로 채운다 */
+    @Query("select s.totalQuantity - s.soldQuantity from SaleItem s where s.id = :id")
+    Optional<Integer> findRemainingQuantity(@Param("id") Long id);
+
     /** 구매 방식 A(비관적 락): SELECT ... FOR UPDATE 로 재고 행을 잠근다 */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("select s from SaleItem s where s.id = :id")

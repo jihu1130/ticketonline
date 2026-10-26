@@ -37,6 +37,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
@@ -59,6 +60,8 @@ public abstract class ConcurrencyTestSupport {
     @Autowired protected PurchaseFacade purchaseFacade;
     @Autowired protected PurchaseProcessor purchaseProcessor;
     @Autowired protected JdbcTemplate jdbc;
+    /** 방식 C 테스트용 (테스트 설정에서 Redis 15번 DB) */
+    @Autowired protected StringRedisTemplate redis;
     @Autowired private MemberRepository memberRepository;
     @Autowired private ProductRepository productRepository;
     @Autowired private GoodsDetailRepository goodsDetailRepository;
@@ -242,6 +245,37 @@ public abstract class ConcurrencyTestSupport {
             }
             return cause;
         }
+    }
+
+    // ---------- 방식 C: Redis ----------
+
+    /**
+     * Redis 가 꺼져 있으면 테스트를 건너뛰고, 켜져 있으면 테스트용 DB(15번)를 비운다.
+     * 테스트 DB 는 실행마다 새로 만들어 번호가 1부터 다시 시작하므로, 지난 실행의 stock:1 같은 값이 남아 있으면 안 된다.
+     */
+    protected void cleanRedisOrSkip() {
+        boolean up;
+        try {
+            up = "PONG".equals(redis.execute(c -> c.ping(), true));
+        } catch (Exception e) {
+            up = false;
+        }
+        org.junit.jupiter.api.Assumptions.assumeTrue(up, "Redis 가 꺼져 있어 방식 C 테스트를 건너뜀");
+        redis.execute(c -> {
+            c.serverCommands().flushDb();
+            return null;
+        }, true);
+    }
+
+    /** Redis 의 남은 수량 (아직 불러오지 않았으면 null) */
+    protected Integer redisStock(Long saleItemId) {
+        String value = redis.opsForValue().get("stock:" + saleItemId);
+        return value == null ? null : Integer.valueOf(value);
+    }
+
+    protected Integer redisBought(Long productId, Long scopeId, Long memberId) {
+        String value = redis.opsForValue().get("bought:" + productId + ":" + scopeId + ":" + memberId);
+        return value == null ? null : Integer.valueOf(value);
     }
 
     // ---------- DB에서 직접 확인 ----------
