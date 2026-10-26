@@ -56,11 +56,24 @@ async function api(path, { method = "GET", body } = {}) {
 
   const data = await response.json().catch(() => null);
   if (!response.ok) {
-    // 토큰이 만료되었으면 저장된 로그인 정보를 지운다
-    if (response.status === 401 && data?.code === "UNAUTHORIZED") auth.clear();
+    if (response.status === 401 && data?.code === "UNAUTHORIZED") goLogin(Boolean(token));
     throw new ApiError(response.status, data?.code ?? "UNKNOWN", data?.message ?? "요청을 처리하지 못했습니다.");
   }
   return data;
+}
+
+/**
+ * 로그인이 필요한 요청이 401 이면 어느 화면에서든 로그인 화면으로 보낸다. 로그인하면 지금 화면으로 돌아온다.
+ * 토큰이 있었는데 401 이면 로그인 시간(2시간)이 지난 것이라 저장된 로그인 정보를 지우고 안내한다.
+ * 같은 화면에서 요청 여러 개가 동시에 401 이어도 한 번만 이동한다.
+ */
+let movingToLogin = false;
+function goLogin(expired) {
+  auth.clear();
+  if (movingToLogin || location.pathname === "/login.html" || location.pathname === "/signup.html") return;
+  movingToLogin = true;
+  const back = encodeURIComponent(location.pathname + location.search);
+  location.href = `/login.html?redirect=${back}${expired ? "&expired=1" : ""}`;
 }
 
 /** 사진 업로드 (multipart). 성공하면 "/uploads/..." 주소를 돌려준다. */
@@ -79,7 +92,7 @@ async function uploadImage(file) {
   }
   const data = await response.json().catch(() => null);
   if (!response.ok) {
-    if (response.status === 401 && data?.code === "UNAUTHORIZED") auth.clear();
+    if (response.status === 401 && data?.code === "UNAUTHORIZED") goLogin(Boolean(token));
     throw new ApiError(response.status, data?.code ?? "UNKNOWN", data?.message ?? "사진을 올리지 못했습니다.");
   }
   return data.url;
@@ -106,7 +119,7 @@ function renderHeader() {
     <a class="nav-messages" href="/messages.html" aria-label="메시지함"><span class="nav-label">메시지함</span><em class="nav-count" id="unread-count" hidden></em></a>
     <a href="/my-orders.html">구매 내역</a>
     <a href="/seller.html">판매 관리</a>
-    <span>${escapeHtml(member.name)}님</span>
+    <a class="nav-me" href="/mypage.html" aria-label="마이페이지"><span class="nav-label">${escapeHtml(member.name)}님</span></a>
     <button class="btn-text" id="logout-button">로그아웃</button>`;
   document.getElementById("logout-button").addEventListener("click", () => {
     auth.clear();

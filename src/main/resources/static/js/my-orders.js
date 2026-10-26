@@ -66,15 +66,27 @@ orderBox.addEventListener("click", async (event) => {
   const edit = article.querySelector(".order-edit");
   const action = button.dataset.action;
 
-  if (action === "cancel") return cancelOrder(order);
   if (action === "close") {
     edit.hidden = true;
     edit.innerHTML = "";
     return;
   }
-  if (action === "save-quantity") return save(order, edit, "quantity", { quantity: Number(edit.querySelector("select").value) });
-  if (action === "save-address") return save(order, edit, "address", { address: edit.querySelector("input").value.trim() });
-  if (action === "save-item") return save(order, edit, "item", { saleItemId: Number(edit.querySelector("#item-grade").value) });
+  // 취소·저장은 요청이 끝날 때까지 버튼을 잠가 두 번 보내지 않게 한다
+  const requests = {
+    cancel: () => cancelOrder(order),
+    "save-quantity": () => save(order, edit, "quantity", { quantity: Number(edit.querySelector("select").value) }),
+    "save-address": () => save(order, edit, "address", { address: edit.querySelector("input").value.trim() }),
+    "save-item": () => save(order, edit, "item", { saleItemId: Number(edit.querySelector("#item-grade").value) }),
+  };
+  if (requests[action]) {
+    button.disabled = true;
+    try {
+      await requests[action]();
+    } finally {
+      button.disabled = false; // 성공하면 목록을 다시 그려 이 버튼은 사라진다
+    }
+    return;
+  }
 
   edit.hidden = false;
   if (action === "quantity") edit.innerHTML = quantityForm(order);
@@ -179,7 +191,7 @@ async function save(order, edit, kind, body) {
 
 function handleError(e, element) {
   if (e.status === 401) {
-    location.href = `/login.html?redirect=${encodeURIComponent("/my-orders.html")}`;
+    // api() 가 로그인 화면으로 보낸다 (로그인 후 이 화면으로 돌아옴)
     return;
   }
   showMessage(element, e.message);
@@ -196,7 +208,7 @@ async function loadOrders(doneMessage) {
     showMessage(pageMessage, doneMessage ?? "", "success");
   } catch (e) {
     if (e.status === 401) {
-      location.href = `/login.html?redirect=${encodeURIComponent("/my-orders.html")}`;
+      // api() 가 로그인 화면으로 보낸다 (로그인 후 이 화면으로 돌아옴)
       return;
     }
     orderBox.innerHTML = `<div class="empty">${escapeHtml(e.message)}</div>`;

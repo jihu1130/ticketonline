@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verify;
 
 import io.github.jihu1130.ticketonline.domain.member.dto.LoginRequest;
 import io.github.jihu1130.ticketonline.domain.member.dto.LoginResponse;
+import io.github.jihu1130.ticketonline.domain.member.dto.MemberResponse;
 import io.github.jihu1130.ticketonline.domain.member.dto.SignupRequest;
 import io.github.jihu1130.ticketonline.domain.member.entity.Member;
 import io.github.jihu1130.ticketonline.domain.member.entity.MemberRole;
@@ -16,6 +17,7 @@ import io.github.jihu1130.ticketonline.domain.member.repository.MemberRepository
 import io.github.jihu1130.ticketonline.global.exception.CustomException;
 import io.github.jihu1130.ticketonline.global.exception.ErrorCode;
 import io.github.jihu1130.ticketonline.global.security.JwtProvider;
+import java.time.LocalDateTime;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -92,6 +94,19 @@ class MemberServiceTest {
                 .extracting("errorCode").isEqualTo(ErrorCode.LOGIN_FAILED);
         assertThatThrownBy(() -> memberService.login(new LoginRequest("nobody@test.com", "password123")))
                 .extracting("errorCode").isEqualTo(ErrorCode.LOGIN_FAILED);
+    }
+
+    @Test
+    void getMember_includesJoinDateForMyPage() {
+        Member member = savedMember(3L, "seller@test.com", "password123");
+        LocalDateTime joinedAt = LocalDateTime.of(2026, 10, 19, 21, 0);
+        ReflectionTestUtils.setField(member, "createdAt", joinedAt);
+        given(memberRepository.findById(3L)).willReturn(Optional.of(member));
+
+        MemberResponse response = memberService.getMember(3L);
+
+        assertThat(response.email()).isEqualTo("seller@test.com");
+        assertThat(response.createdAt()).isEqualTo(joinedAt);
     }
 
     private Member savedMember(Long id, String email, String rawPassword) {

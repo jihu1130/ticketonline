@@ -288,7 +288,7 @@ form.addEventListener("submit", async (event) => {
     await loadProducts();
   } catch (e) {
     if (e.status === 401) {
-      location.href = "/login.html";
+      // api() 가 로그인 화면으로 보낸다 (로그인 후 이 화면으로 돌아옴)
       return;
     }
     showMessage(message, e.message);
@@ -395,7 +395,7 @@ async function loadProducts() {
     renderProducts();
   } catch (e) {
     if (e.status === 401) {
-      location.href = "/login.html";
+      // api() 가 로그인 화면으로 보낸다 (로그인 후 이 화면으로 돌아옴)
       return;
     }
     listBox.innerHTML = `<div class="empty">${escapeHtml(e.message)}</div>`;

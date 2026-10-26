@@ -85,7 +85,7 @@ async function poll() {
     await handle(await api(`/api/products/${encodeURIComponent(productId)}/queue/me`));
   } catch (e) {
     if (e.status === 401) {
-      location.href = `/login.html?redirect=${encodeURIComponent(location.pathname + location.search)}`;
+      // api() 가 로그인 화면으로 보낸다 (로그인 후 이 화면으로 돌아옴)
     } else if (e.code !== "NETWORK_ERROR") {
       showError(e.message);
     }
@@ -107,7 +107,7 @@ async function start() {
     timer = setInterval(poll, POLL_MS);
   } catch (e) {
     if (e.status === 401) {
-      location.href = `/login.html?redirect=${encodeURIComponent(location.pathname + location.search)}`;
+      // api() 가 로그인 화면으로 보낸다 (로그인 후 이 화면으로 돌아옴)
       return;
     }
     showError(e.message);

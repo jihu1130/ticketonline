@@ -51,6 +51,11 @@
       return target && target.startsWith("/") && !target.startsWith("//") && !target.startsWith("/\\") ? target : "/";
     }
 
+    // 다른 화면에서 로그인 시간이 지나 이곳으로 온 경우
+    if (new URLSearchParams(location.search).get("expired")) {
+      showMessage(message, "로그인 시간이 지났습니다. 다시 로그인하면 보던 화면으로 돌아갑니다.");
+    }
+
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       const button = form.querySelector("button[type=submit]");

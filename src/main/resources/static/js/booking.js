@@ -285,7 +285,7 @@ async function buy() {
     renderDone(order);
   } catch (e) {
     if (e.status === 401) {
-      location.href = `/login.html?redirect=${encodeURIComponent(location.pathname + location.search)}`;
+      // api() 가 로그인 화면으로 보낸다 (로그인 후 이 화면으로 돌아옴)
       return;
     }
     if (e.code === "NOT_ADMITTED") {
