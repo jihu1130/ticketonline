@@ -20,7 +20,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
  * JWT 로그인과 접근 권한 (기능 명세서 2항 공통 규칙)
  * - 누구나 : 화면(html·css·js), 회원가입, 로그인, 상품 목록·상세 조회, Swagger
  * - 로그인한 회원 : 그 밖의 모든 기능 (한 계정으로 판매와 구매를 모두 한다)
- * 본인 상품 구매 금지(OWN_PRODUCT)처럼 상품마다 다른 규칙은 서비스에서 확인한다.
+ * 본인 상품만 수정·삭제(FORBIDDEN)처럼 상품마다 다른 규칙은 서비스에서 확인한다.
  */
 @Configuration
 @EnableWebSecurity

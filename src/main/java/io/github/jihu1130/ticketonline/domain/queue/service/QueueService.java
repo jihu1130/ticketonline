@@ -74,9 +74,6 @@ public class QueueService {
     QueueResponse enter(Long memberId, Long productId, long now) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new CustomException(ErrorCode.PRODUCT_NOT_FOUND));
-        if (product.isOwnedBy(memberId)) {
-            throw new CustomException(ErrorCode.OWN_PRODUCT);
-        }
         LocalDateTime today = LocalDateTime.now();
         if (today.isBefore(product.getSaleStartAt()) || !today.isBefore(product.getSaleEndAt())) {
             throw new CustomException(ErrorCode.NOT_ON_SALE);

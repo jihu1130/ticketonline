@@ -149,12 +149,13 @@ class OrderServiceTest {
     }
 
     @Test
-    void purchase_rejectsOwnProduct() {
-        onSale(ProductType.GOODS);
+    void purchase_sellerCanBuyOwnProduct() {
+        Product goods = onSale(ProductType.GOODS);
+        stubGoods(goods, DeliveryType.PARCEL);
 
-        assertThatThrownBy(() -> orderService.purchase(SELLER_ID, PRODUCT_ID, new OrderRequest(null, 1, "주소")))
-                .extracting("errorCode").isEqualTo(ErrorCode.OWN_PRODUCT);
-        verify(purchaseProcessor, never()).process(any());
+        orderService.purchase(SELLER_ID, PRODUCT_ID, new OrderRequest(null, 1, "주소"));
+
+        assertThat(capturedCommand().memberId()).isEqualTo(SELLER_ID);
     }
 
     @Test

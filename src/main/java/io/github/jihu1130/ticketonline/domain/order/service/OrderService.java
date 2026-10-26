@@ -46,9 +46,7 @@ public class OrderService {
     public OrderResponse purchase(Long memberId, Long productId, OrderRequest request) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new CustomException(ErrorCode.PRODUCT_NOT_FOUND));
-        if (product.isOwnedBy(memberId)) {
-            throw new CustomException(ErrorCode.OWN_PRODUCT);
-        }
+        // 판매자도 자기 상품을 구매할 수 있다
         LocalDateTime now = LocalDateTime.now();
         if (now.isBefore(product.getSaleStartAt())) {
             throw new CustomException(ErrorCode.NOT_ON_SALE, "아직 판매가 시작되지 않았습니다.");

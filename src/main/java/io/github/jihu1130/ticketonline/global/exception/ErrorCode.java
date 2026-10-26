@@ -28,7 +28,6 @@ public enum ErrorCode {
 
     // 구매 (F-04, F-05, F-07)
     NOT_ON_SALE(HttpStatus.BAD_REQUEST, "지금은 구매할 수 없는 상품입니다."),
-    OWN_PRODUCT(HttpStatus.BAD_REQUEST, "본인이 등록한 상품은 구매할 수 없습니다."),
     SOLD_OUT(HttpStatus.CONFLICT, "매진되었습니다."),
     INSUFFICIENT_STOCK(HttpStatus.CONFLICT, "남은 수량보다 많이 구매할 수 없습니다."),
     LIMIT_EXCEEDED(HttpStatus.CONFLICT, "1인당 구매할 수 있는 수량을 넘었습니다."),

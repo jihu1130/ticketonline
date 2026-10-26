@@ -205,11 +205,15 @@ class QueueServiceTest {
     }
 
     @Test
-    void enter_rejectsWhenNotOnSaleOrOwnProduct() {
+    void enter_sellerCanQueueForOwnProduct() {
         QueueService queue = queue(50);
 
-        assertThatThrownBy(() -> queue.enter(SELLER_ID, PRODUCT_ID, T0))
-                .extracting("errorCode").isEqualTo(ErrorCode.OWN_PRODUCT);
+        assertThat(queue.enter(SELLER_ID, PRODUCT_ID, T0).status()).isEqualTo(QueueStatus.WAITING);
+    }
+
+    @Test
+    void enter_rejectsWhenNotOnSale() {
+        QueueService queue = queue(50);
 
         product(now.plusDays(1), now.plusDays(2));
         assertThatThrownBy(() -> queue.enter(2L, PRODUCT_ID, T0))
