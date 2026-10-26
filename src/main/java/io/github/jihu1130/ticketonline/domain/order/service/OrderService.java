@@ -48,6 +48,12 @@ public class OrderService {
 
     @Transactional
     public OrderResponse purchase(Long memberId, Long productId, OrderRequest request) {
+        return purchase(memberId, productId, request, false);
+    }
+
+    /** reservedInRedis: 방식 C 에서 PurchaseFacade 가 Redis 차감을 이미 했는지 (확인은 여기서 DB 기준으로 다시 한다) */
+    @Transactional
+    public OrderResponse purchase(Long memberId, Long productId, OrderRequest request, boolean reservedInRedis) {
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new CustomException(ErrorCode.PRODUCT_NOT_FOUND));
         // 판매자도 자기 상품을 구매할 수 있다
@@ -73,7 +79,7 @@ public class OrderService {
         }
 
         PurchaseCommand command = new PurchaseCommand(memberId, productId, target.id(), scopeId,
-                product.getMaxPerPerson(), request.quantity(), address, ticket);
+                product.getMaxPerPerson(), request.quantity(), address, ticket, reservedInRedis);
         ProductOrder order = purchaseProcessor.process(command);
         orderNotices.purchased(order);
         return OrderResponse.from(order);

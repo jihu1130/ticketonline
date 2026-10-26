@@ -28,9 +28,23 @@ public class PurchaseFacade {
     private final OrderService orderService;
     private final PurchaseProcessor purchaseProcessor;
     private final QueueService queueService;
+    private final RedisStock redisStock;
 
     public OrderResponse purchase(Long memberId, Long productId, OrderRequest request) {
         queueService.checkAdmitted(memberId, productId);
+
+        // 방식 C: DB 연결을 잡기 전에 Redis 에서 확인·차감한다. 매진 등은 여기서 끝나고, 통과한 요청만 DB 로 간다.
+        // DB 단계가 어떤 이유로든 실패하면 Redis 에서 줄인 것을 되돌린다. (A·B 는 null 이라 아래로)
+        PurchaseCommand reserved = redisStock.reserveAhead(memberId, productId, request.saleItemId(), request.quantity());
+        if (reserved != null) {
+            try {
+                return orderService.purchase(memberId, productId, request, true);
+            } catch (RuntimeException e) {
+                redisStock.release(reserved);
+                throw e;
+            }
+        }
+
         int maxAttempts = purchaseProcessor.maxAttempts();
         for (int attempt = 1; ; attempt++) {
             try {

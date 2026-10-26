@@ -16,8 +16,15 @@ public record PurchaseCommand(
         int maxPerPerson,
         int quantity,
         String address,
-        boolean ticket
+        boolean ticket,
+        // 방식 C: PurchaseFacade 가 DB 를 쓰기 전에 Redis 에서 이미 차감했으면 true (처리기는 다시 차감하지 않음)
+        boolean reservedInRedis
 ) {
+
+    public PurchaseCommand(Long memberId, Long productId, Long saleItemId, Long scopeId, int maxPerPerson,
+                           int quantity, String address, boolean ticket) {
+        this(memberId, productId, saleItemId, scopeId, maxPerPerson, quantity, address, ticket, false);
+    }
 
     /** 한도 초과 안내 문구. 예) "회차당 2매까지 구매할 수 있어 1매만 더 구매할 수 있습니다." */
     public String limitMessage(int allowance) {

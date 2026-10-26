@@ -1,10 +1,23 @@
 package io.github.jihu1130.ticketonline.domain.order.service;
 
+import io.github.jihu1130.ticketonline.domain.order.entity.PurchaseCountId;
 import io.github.jihu1130.ticketonline.domain.order.repository.PurchaseCountRepository;
+import io.github.jihu1130.ticketonline.domain.product.entity.Performance;
+import io.github.jihu1130.ticketonline.domain.product.entity.Product;
+import io.github.jihu1130.ticketonline.domain.product.entity.ProductType;
+import io.github.jihu1130.ticketonline.domain.product.entity.TicketDetail;
+import io.github.jihu1130.ticketonline.domain.product.repository.PerformanceRepository;
+import io.github.jihu1130.ticketonline.domain.product.repository.ProductRepository;
+import io.github.jihu1130.ticketonline.domain.product.repository.SaleItemKey;
 import io.github.jihu1130.ticketonline.domain.product.repository.SaleItemRepository;
+import io.github.jihu1130.ticketonline.domain.product.repository.TicketDetailRepository;
 import io.github.jihu1130.ticketonline.global.exception.CustomException;
 import io.github.jihu1130.ticketonline.global.exception.ErrorCode;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataAccessException;
@@ -32,20 +45,21 @@ public class RedisStock {
 
     /**
      * 한도 확인 + 남은 수량 확인 + 차감을 한 번에 (Redis 는 스크립트 하나를 다른 명령과 섞지 않고 끝까지 실행한다).
+     * 매진은 산 수량보다 먼저 본다: 처음 오는 구매자의 산 수량을 DB 에서 읽지 않고도 매진이면 바로 거절하기 위해.
      * 반환 {결과, 값}: 1 = 성공(값: 남은 수량), -1 = 재고 키 없음, -2 = 산 수량 키 없음,
      * -3 = 한도 초과(값: 더 살 수 있는 수량), -4 = 매진, -5 = 수량 부족(값: 남은 수량)
      */
     private static final RedisScript<List> RESERVE = new DefaultRedisScript<>("""
             local stock = redis.call('GET', KEYS[1])
             if not stock then return {-1, 0} end
+            stock = tonumber(stock)
+            if stock <= 0 then return {-4, 0} end
             local bought = redis.call('GET', KEYS[2])
             if not bought then return {-2, 0} end
-            stock = tonumber(stock)
             bought = tonumber(bought)
             local quantity = tonumber(ARGV[1])
             local limit = tonumber(ARGV[2])
             if bought + quantity > limit then return {-3, math.max(0, limit - bought)} end
-            if stock <= 0 then return {-4, 0} end
             if quantity > stock then return {-5, stock} end
             redis.call('DECRBY', KEYS[1], quantity)
             redis.call('INCRBY', KEYS[2], quantity)
@@ -65,15 +79,107 @@ public class RedisStock {
     private final StringRedisTemplate redis;
     private final SaleItemRepository saleItemRepository;
     private final PurchaseCountRepository purchaseCountRepository;
+    private final ProductRepository productRepository;
+    private final PerformanceRepository performanceRepository;
+    private final TicketDetailRepository ticketDetailRepository;
     private final boolean enabled;
 
     public RedisStock(StringRedisTemplate redis, SaleItemRepository saleItemRepository,
-                      PurchaseCountRepository purchaseCountRepository,
+                      PurchaseCountRepository purchaseCountRepository, ProductRepository productRepository,
+                      PerformanceRepository performanceRepository, TicketDetailRepository ticketDetailRepository,
                       @Value("${app.purchase.strategy:pessimistic}") String strategy) {
         this.redis = redis;
         this.saleItemRepository = saleItemRepository;
         this.purchaseCountRepository = purchaseCountRepository;
+        this.productRepository = productRepository;
+        this.performanceRepository = performanceRepository;
+        this.ticketDetailRepository = ticketDetailRepository;
         this.enabled = "redis".equals(strategy);
+    }
+
+    // ---------- DB 를 쓰기 전에 차감 (PurchaseFacade) ----------
+
+    /**
+     * 방식 C: DB 연결을 잡기 전에 Redis 만으로 확인하고 차감한다. 매진·한도 초과·판매 기간 아님은 여기서 끝나 DB 를 쓰지 않는다.
+     * 판매 단위 정보(item:{판매단위})는 처음 한 번만 DB 에서 읽어 둔다. 판매가 시작되면 바뀌지 않는 값이라 다시 읽지 않는다
+     * (상품은 판매 시작 전에만 수정할 수 있고, 수정하면 판매 단위 번호가 새로 만들어진다).
+     *
+     * @return 차감한 내용 (DB 단계가 실패하면 release 로 되돌린다). 방식 C 가 아니거나 판매 단위를 고르지 않았으면 null
+     */
+    public PurchaseCommand reserveAhead(Long memberId, Long productId, Long saleItemId, int quantity) {
+        if (!enabled || saleItemId == null) {
+            return null;
+        }
+        ItemInfo item = itemInfo(saleItemId);
+        if (!item.productId().equals(productId)) {
+            throw new CustomException(ErrorCode.INVALID_INPUT, "이 상품의 구매 항목이 아닙니다.");
+        }
+        long now = System.currentTimeMillis();
+        if (now < item.saleStartAt()) {
+            throw new CustomException(ErrorCode.NOT_ON_SALE, "아직 판매가 시작되지 않았습니다.");
+        }
+        if (now >= item.saleEndAt()) {
+            throw new CustomException(ErrorCode.NOT_ON_SALE, "판매가 종료된 상품입니다.");
+        }
+        if (now >= item.closeAt()) {
+            throw new CustomException(ErrorCode.NOT_ON_SALE, "예매가 마감된 회차입니다.");
+        }
+        PurchaseCommand command = new PurchaseCommand(memberId, productId, saleItemId, item.scopeId(),
+                item.maxPerPerson(), quantity, null, item.ticket(), true);
+        reserve(command);
+        return command;
+    }
+
+    /** 판매 단위 정보: 상품 번호, 한도 범위(회차 또는 0), 1인 한도, 티켓 여부, 판매 시작·종료, 예매 마감 (시각은 ms) */
+    record ItemInfo(Long productId, Long scopeId, int maxPerPerson, boolean ticket,
+                    long saleStartAt, long saleEndAt, long closeAt) {
+    }
+
+    ItemInfo itemInfo(Long saleItemId) {
+        String key = itemKey(saleItemId);
+        Map<Object, Object> cached = redis.opsForHash().entries(key);
+        if (cached.isEmpty()) {
+            cached = loadItemInfo(saleItemId);
+            redis.opsForHash().putAll(key, cached);
+        }
+        return new ItemInfo(
+                Long.valueOf((String) cached.get("productId")),
+                Long.valueOf((String) cached.get("scopeId")),
+                Integer.parseInt((String) cached.get("maxPerPerson")),
+                "1".equals(cached.get("ticket")),
+                Long.parseLong((String) cached.get("saleStartAt")),
+                Long.parseLong((String) cached.get("saleEndAt")),
+                Long.parseLong((String) cached.get("closeAt")));
+    }
+
+    private Map<Object, Object> loadItemInfo(Long saleItemId) {
+        SaleItemKey key = saleItemRepository.findKeyById(saleItemId)
+                .orElseThrow(() -> new CustomException(ErrorCode.INVALID_INPUT, "구매할 항목을 찾을 수 없습니다."));
+        Product product = productRepository.findById(key.productId())
+                .orElseThrow(() -> new CustomException(ErrorCode.PRODUCT_NOT_FOUND));
+        boolean ticket = product.getType() == ProductType.TICKET;
+        LocalDateTime closeAt = product.getSaleEndAt();
+        if (ticket) {
+            Performance performance = performanceRepository.findById(key.performanceId())
+                    .orElseThrow(() -> new CustomException(ErrorCode.PRODUCT_NOT_FOUND));
+            TicketDetail detail = ticketDetailRepository.findById(product.getId())
+                    .orElseThrow(() -> new CustomException(ErrorCode.PRODUCT_NOT_FOUND));
+            closeAt = Performance.bookingCloseAt(performance.getEventAt(), product.getSaleEndAt(),
+                    detail.getCloseBeforeHours());
+        }
+        Map<Object, Object> info = new HashMap<>();
+        info.put("productId", String.valueOf(product.getId()));
+        info.put("scopeId", String.valueOf(ticket ? key.performanceId() : PurchaseCountId.WHOLE_PRODUCT));
+        info.put("maxPerPerson", String.valueOf(product.getMaxPerPerson()));
+        info.put("ticket", ticket ? "1" : "0");
+        info.put("saleStartAt", String.valueOf(millis(product.getSaleStartAt())));
+        info.put("saleEndAt", String.valueOf(millis(product.getSaleEndAt())));
+        info.put("closeAt", String.valueOf(millis(closeAt)));
+        return info;
+    }
+
+    private static long millis(LocalDateTime time) {
+        return time.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
     }
 
     /**
@@ -169,6 +275,10 @@ public class RedisStock {
 
     private void add(List<String> keys, int first, int second) {
         redis.execute(ADD_IF_EXISTS, keys, String.valueOf(first), String.valueOf(second));
+    }
+
+    static String itemKey(Long saleItemId) {
+        return "item:" + saleItemId;
     }
 
     static String stockKey(Long saleItemId) {

@@ -18,8 +18,9 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 /**
  * 구매 방식 C: Redis.
- * 1) Redis Lua 스크립트로 1인 한도와 남은 수량을 확인하고 줄인다 (RedisStock.reserve).
- *    매진·한도 초과 요청은 여기서 끝나 DB 를 건드리지 않는다. 1000명이 재고 100개를 사면 900명이 여기서 거절된다.
+ * 1) Redis Lua 스크립트로 1인 한도와 남은 수량을 확인하고 줄인다.
+ *    보통은 PurchaseFacade 가 DB 연결을 잡기 전에 이미 해 두었다 (RedisStock.reserveAhead).
+ *    매진·한도 초과 요청은 거기서 끝나 DB 를 건드리지 않는다. 1000명이 재고 100개를 사면 900명이 거기서 거절된다.
  * 2) 통과한 요청만 DB 에 기록한다. 순서는 방식 A 와 같이 1인 한도 행 -> 재고 행 (주문 취소·변경과 교착이 생기지 않게).
  *    재고는 "총 수량을 넘지 않을 때만" 늘리는 조건부 UPDATE 라서, Redis 와 DB 가 잠깐 어긋나도 초과 판매는 없다.
  * 3) DB 기록이 실패해 트랜잭션이 되돌려지면 Redis 에서 줄인 것도 되돌린다.
@@ -39,15 +40,18 @@ public class RedisPurchaseProcessor implements PurchaseProcessor {
     @Transactional(propagation = Propagation.MANDATORY)
     public ProductOrder process(PurchaseCommand command) {
         // 1) Redis: 통과하지 못하면 여기서 CustomException (Redis 는 바뀌지 않음)
-        redisStock.reserve(command);
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCompletion(int status) {
-                if (status != STATUS_COMMITTED) {
-                    redisStock.release(command);
+        //    PurchaseFacade 가 DB 전에 이미 차감했으면 건너뛴다 (그때 되돌리기는 PurchaseFacade 가 맡는다)
+        if (!command.reservedInRedis()) {
+            redisStock.reserve(command);
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCompletion(int status) {
+                    if (status != STATUS_COMMITTED) {
+                        redisStock.release(command);
+                    }
                 }
-            }
-        });
+            });
+        }
 
         // 2) DB: 1인 한도 행 (Redis 가 이미 확인했지만, 어긋났을 때를 대비해 DB 값으로 한 번 더)
         purchaseCountRepository.addBought(command.memberId(), command.productId(), command.scopeId(), command.quantity());

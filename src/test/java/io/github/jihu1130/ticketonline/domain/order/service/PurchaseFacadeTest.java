@@ -27,6 +27,7 @@ class PurchaseFacadeTest {
     private final PurchaseProcessor optimistic = processorWithAttempts(3);
     private final PurchaseProcessor pessimistic = processorWithAttempts(1);
     private final QueueService queueService = Mockito.mock(QueueService.class);
+    private final RedisStock redisStock = Mockito.mock(RedisStock.class); // 방식 A·B 처럼 아무것도 하지 않음 (null)
     private final OrderRequest request = new OrderRequest(1L, 1, null);
     private final OrderResponse ok = new OrderResponse(1L, 10L, null, "상품", null, null, null,
             1, 1000, 1000, null, null, null, 1L, null, null);
@@ -38,7 +39,7 @@ class PurchaseFacadeTest {
                 .willThrow(new DataIntegrityViolationException("같은 사람의 첫 구매가 겹침"))
                 .willReturn(ok);
 
-        OrderResponse response = new PurchaseFacade(orderService, optimistic, queueService).purchase(2L, 10L, request);
+        OrderResponse response = new PurchaseFacade(orderService, optimistic, queueService, redisStock).purchase(2L, 10L, request);
 
         assertThat(response).isSameAs(ok);
         verify(orderService, times(3)).purchase(2L, 10L, request);
@@ -48,7 +49,7 @@ class PurchaseFacadeTest {
     void optimistic_threeConflicts_tooManyRequests() {
         given(orderService.purchase(anyLong(), anyLong(), any())).willThrow(conflict());
 
-        assertThatThrownBy(() -> new PurchaseFacade(orderService, optimistic, queueService).purchase(2L, 10L, request))
+        assertThatThrownBy(() -> new PurchaseFacade(orderService, optimistic, queueService, redisStock).purchase(2L, 10L, request))
                 .isInstanceOf(CustomException.class)
                 .extracting("errorCode").isEqualTo(ErrorCode.TOO_MANY_REQUESTS);
         verify(orderService, times(3)).purchase(2L, 10L, request);
@@ -59,7 +60,7 @@ class PurchaseFacadeTest {
         given(orderService.purchase(anyLong(), anyLong(), any()))
                 .willThrow(new CustomException(ErrorCode.SOLD_OUT));
 
-        assertThatThrownBy(() -> new PurchaseFacade(orderService, optimistic, queueService).purchase(2L, 10L, request))
+        assertThatThrownBy(() -> new PurchaseFacade(orderService, optimistic, queueService, redisStock).purchase(2L, 10L, request))
                 .extracting("errorCode").isEqualTo(ErrorCode.SOLD_OUT);
         verify(orderService, times(1)).purchase(2L, 10L, request);
     }
@@ -68,7 +69,7 @@ class PurchaseFacadeTest {
     void pessimistic_doesNotRetry() {
         given(orderService.purchase(anyLong(), anyLong(), any())).willThrow(conflict());
 
-        assertThatThrownBy(() -> new PurchaseFacade(orderService, pessimistic, queueService).purchase(2L, 10L, request))
+        assertThatThrownBy(() -> new PurchaseFacade(orderService, pessimistic, queueService, redisStock).purchase(2L, 10L, request))
                 .isInstanceOf(ObjectOptimisticLockingFailureException.class);
         verify(orderService, times(1)).purchase(2L, 10L, request);
     }
@@ -77,7 +78,7 @@ class PurchaseFacadeTest {
     void notAdmitted_doesNotPurchase() {
         willThrow(new CustomException(ErrorCode.NOT_ADMITTED)).given(queueService).checkAdmitted(2L, 10L);
 
-        assertThatThrownBy(() -> new PurchaseFacade(orderService, optimistic, queueService).purchase(2L, 10L, request))
+        assertThatThrownBy(() -> new PurchaseFacade(orderService, optimistic, queueService, redisStock).purchase(2L, 10L, request))
                 .extracting("errorCode").isEqualTo(ErrorCode.NOT_ADMITTED);
         verify(orderService, never()).purchase(anyLong(), anyLong(), any());
     }
