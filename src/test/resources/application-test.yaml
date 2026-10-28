@@ -20,6 +20,9 @@ spring:
 app:
   upload:
     dir: build/test-uploads
+  purchase:
+    # 테스트는 A 가 기본 (서버 기본은 C). B·C 테스트는 각 클래스에서 따로 정한다
+    strategy: pessimistic
   queue:
     # 구매 테스트는 대기열을 건너뛴다. 대기열은 QueueServiceTest 에서 따로 확인
     enabled: false

@@ -23,7 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
  * 잠그는 순서를 항상 같게 해 두 요청이 서로를 기다리는 교착(데드락)을 막는다.
  */
 @Component
-@ConditionalOnProperty(name = "app.purchase.strategy", havingValue = "pessimistic", matchIfMissing = true)
+@ConditionalOnProperty(name = "app.purchase.strategy", havingValue = "pessimistic")
 @RequiredArgsConstructor
 public class PessimisticPurchaseProcessor implements PurchaseProcessor {
 

@@ -87,7 +87,7 @@ public class RedisStock {
     public RedisStock(StringRedisTemplate redis, SaleItemRepository saleItemRepository,
                       PurchaseCountRepository purchaseCountRepository, ProductRepository productRepository,
                       PerformanceRepository performanceRepository, TicketDetailRepository ticketDetailRepository,
-                      @Value("${app.purchase.strategy:pessimistic}") String strategy) {
+                      @Value("${app.purchase.strategy:redis}") String strategy) {
         this.redis = redis;
         this.saleItemRepository = saleItemRepository;
         this.purchaseCountRepository = purchaseCountRepository;

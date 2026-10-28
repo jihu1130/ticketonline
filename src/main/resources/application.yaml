@@ -37,7 +37,8 @@ app:
     # 구매 동시성 처리 방식 (성능 비교용)
     # pessimistic: A 비관적 락 (SELECT ... FOR UPDATE) / optimistic: B 낙관적 락 (@Version, 최대 3번 시도)
     # redis: C Redis (Lua 스크립트로 한도·수량 확인과 차감을 한 번에, 통과한 요청만 DB 에 기록. Redis 가 켜져 있어야 함)
-    strategy: ${PURCHASE_STRATEGY:pessimistic}
+    # 기본은 C (k6 측정에서 가장 빠름). Redis 가 꺼져 있으면 구매도 실패한다
+    strategy: ${PURCHASE_STRATEGY:redis}
   queue:
     # 구매하기 -> 대기열 -> 입장한 사람만 예매 화면에서 구매. k6 로 A/B/C 를 비교할 때는 false
     enabled: ${QUEUE_ENABLED:true}

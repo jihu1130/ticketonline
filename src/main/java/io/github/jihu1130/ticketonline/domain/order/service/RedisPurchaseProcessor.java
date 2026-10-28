@@ -26,7 +26,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  * 3) DB 기록이 실패해 트랜잭션이 되돌려지면 Redis 에서 줄인 것도 되돌린다.
  */
 @Component
-@ConditionalOnProperty(name = "app.purchase.strategy", havingValue = "redis")
+@ConditionalOnProperty(name = "app.purchase.strategy", havingValue = "redis", matchIfMissing = true)
 @RequiredArgsConstructor
 public class RedisPurchaseProcessor implements PurchaseProcessor {
 
