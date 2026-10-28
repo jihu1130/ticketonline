@@ -44,6 +44,61 @@ class LoadTestResultServiceTest {
         assertThat(result.exists()).isFalse();
         assertThat(result.medians()).isNull();
         assertThat(result.runs()).isNull();
+        assertThat(result.scaleMedians()).isNull();
+        assertThat(result.scaleMeasuredAt()).isNull();
+    }
+
+    @Test
+    void getLatest_readsScaleMediansSeparately() throws Exception {
+        // 동시 인원별 결과만 있어도 읽는다 (기본 결과는 없음)
+        Path scaleDir = Files.createDirectories(tempDir.resolve(LoadTestResultService.SCALE_DIR));
+        Files.writeString(scaleDir.resolve(LoadTestResultService.MEDIANS_FILE), """
+                {"1000": {"redis": {"tps": 2958.6, "p95_ms": 213.4}},
+                 "5000": {"redis": {"tps": 3100.0, "p95_ms": 900.0}, "pessimistic": {"tps": 1500.0}}}
+                """);
+
+        LoadTestResultResponse result = service.getLatest();
+
+        assertThat(result.exists()).isFalse();
+        assertThat(result.scaleMeasuredAt()).isNotNull();
+        assertThat(result.scaleMedians().get("5000").get("redis").get("p95_ms").asDouble()).isEqualTo(900.0);
+        assertThat(result.scaleMedians().get("5000").get("pessimistic").get("tps").asDouble()).isEqualTo(1500.0);
+    }
+
+    @Test
+    void getLatest_readsStressStages() throws Exception {
+        Path stressDir = Files.createDirectories(tempDir.resolve(LoadTestResultService.STRESS_DIR));
+        Files.writeString(stressDir.resolve(LoadTestResultService.RUNS_FILE), """
+                [{"target_rps": 1000, "actual_rps": 998.2, "p95_ms": 45.1},
+                 {"target_rps": 2000, "actual_rps": 1500.0, "p95_ms": 12000.0, "stopped": "p95 12000.0ms"}]
+                """);
+
+        LoadTestResultResponse result = service.getLatest();
+
+        assertThat(result.exists()).isFalse();
+        assertThat(result.scaleMedians()).isNull();
+        assertThat(result.stressMeasuredAt()).isNotNull();
+        assertThat(result.stressStages().size()).isEqualTo(2);
+        assertThat(result.stressStages().get(1).get("stopped").asString()).isEqualTo("p95 12000.0ms");
+    }
+
+    @Test
+    void getLatest_withoutStressFile_stressIsNull() {
+        LoadTestResultResponse result = service.getLatest();
+
+        assertThat(result.stressStages()).isNull();
+        assertThat(result.stressMeasuredAt()).isNull();
+    }
+
+    @Test
+    void getLatest_brokenScaleFile_isInternalError() throws Exception {
+        Path scaleDir = Files.createDirectories(tempDir.resolve(LoadTestResultService.SCALE_DIR));
+        Files.writeString(scaleDir.resolve(LoadTestResultService.MEDIANS_FILE), "{not json");
+
+        assertThatThrownBy(() -> service.getLatest())
+                .isInstanceOf(CustomException.class)
+                .extracting(e -> ((CustomException) e).getErrorCode())
+                .isEqualTo(ErrorCode.INTERNAL_ERROR);
     }
 
     @Test

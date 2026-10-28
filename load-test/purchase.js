@@ -19,7 +19,8 @@ const BASE_URL = __ENV.BASE_URL || "http://localhost:8891";
 const PRODUCT_ID = __ENV.PRODUCT_ID;
 const SALE_ITEM_ID = Number(__ENV.SALE_ITEM_ID);
 const VUS = Number(__ENV.VUS || 1000);
-const CONNECT_SPREAD_MS = 2000; // 연결을 나눠 맺는 시간
+// 연결을 나눠 맺는 시간. run.py 가 인원에 맞춰 준다 (초당 500개: 1000명 2초, 5000명 10초)
+const CONNECT_SPREAD_MS = Number(__ENV.SPREAD_MS || 2000);
 const tokens = new SharedArray("tokens", () => JSON.parse(open(__ENV.TOKENS)));
 
 const purchased = new Counter("purchase_success");

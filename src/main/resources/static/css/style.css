@@ -509,6 +509,8 @@ a.btn { display: block; text-align: center; text-decoration: none; }
 .result-table th:first-child { text-align: left; }
 .result-table tbody th { font-weight: 700; color: var(--navy); }
 .result-table td.is-bad { font-weight: 700; color: var(--error); }
+.result-table tr.group-start:not(:first-child) > * { border-top: 2px solid var(--line); }
+.result-table td.stress-stop { text-align: left; font-weight: 700; color: var(--error); background: var(--bg); }
 
 /* ── 메시지함 ── */
 .message-tabs { flex-wrap: wrap; align-items: center; margin-bottom: 4px; }

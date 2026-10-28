@@ -11,10 +11,14 @@ import java.time.ZoneId;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * load-test/run.py 가 남긴 결과 파일(medians.json, results.json)을 읽는다.
+ * load-test/run.py 가 남긴 결과 파일을 읽는다.
+ *  - 기본 결과(1000명): 결과 폴더의 medians.json, results.json
+ *  - 동시 인원별 결과(run.py --users): 결과 폴더/scale/medians.json
+ *  - 한계 측정 결과(run.py stress): 결과 폴더/stress/results.json
  * run.py 는 측정할 때마다 파일을 덮어쓰므로 항상 가장 최근 측정 결과다.
  */
 @Service
@@ -22,6 +26,8 @@ public class LoadTestResultService {
 
     static final String MEDIANS_FILE = "medians.json";
     static final String RUNS_FILE = "results.json";
+    static final String SCALE_DIR = "scale";
+    static final String STRESS_DIR = "stress";
 
     private final Path resultsDir;
     private final JsonMapper jsonMapper;
@@ -34,17 +40,39 @@ public class LoadTestResultService {
     public LoadTestResultResponse getLatest() {
         Path medians = resultsDir.resolve(MEDIANS_FILE);
         Path runs = resultsDir.resolve(RUNS_FILE);
-        if (!Files.isRegularFile(medians) || !Files.isRegularFile(runs)) {
-            return LoadTestResultResponse.empty();
-        }
+        Path scaleMedians = resultsDir.resolve(SCALE_DIR).resolve(MEDIANS_FILE);
+        Path stressStages = resultsDir.resolve(STRESS_DIR).resolve(RUNS_FILE);
+        boolean exists = Files.isRegularFile(medians) && Files.isRegularFile(runs);
+        boolean scaleExists = Files.isRegularFile(scaleMedians);
+        boolean stressExists = Files.isRegularFile(stressStages);
+        // 측정 시각 = 결과 파일을 마지막으로 쓴 시각
+        return new LoadTestResultResponse(exists,
+                exists ? modifiedAt(runs) : null,
+                exists ? read(medians) : null,
+                exists ? read(runs) : null,
+                scaleExists ? modifiedAt(scaleMedians) : null,
+                scaleExists ? read(scaleMedians) : null,
+                stressExists ? modifiedAt(stressStages) : null,
+                stressExists ? read(stressStages) : null);
+    }
+
+    private JsonNode read(Path file) {
         try {
-            // 측정 시각 = 회차별 결과 파일을 마지막으로 쓴 시각
-            LocalDateTime measuredAt = LocalDateTime.ofInstant(Files.getLastModifiedTime(runs).toInstant(),
-                    ZoneId.systemDefault());
-            return new LoadTestResultResponse(true, measuredAt,
-                    jsonMapper.readTree(medians.toFile()), jsonMapper.readTree(runs.toFile()));
-        } catch (IOException | JacksonException e) {
-            throw new CustomException(ErrorCode.INTERNAL_ERROR, "부하 테스트 결과 파일을 읽지 못했습니다.");
+            return jsonMapper.readTree(file.toFile());
+        } catch (JacksonException e) {
+            throw readFailed();
         }
+    }
+
+    private LocalDateTime modifiedAt(Path file) {
+        try {
+            return LocalDateTime.ofInstant(Files.getLastModifiedTime(file).toInstant(), ZoneId.systemDefault());
+        } catch (IOException e) {
+            throw readFailed();
+        }
+    }
+
+    private static CustomException readFailed() {
+        return new CustomException(ErrorCode.INTERNAL_ERROR, "부하 테스트 결과 파일을 읽지 못했습니다.");
     }
 }
