@@ -4,13 +4,13 @@ k6 부하 테스트 실행기 (11단계): 방식 A / B / C 를 같은 조건으�
 조건 (기획서 3-1, 3-2)
   재고 100개 굿즈(1인 1개)에 회원 1000명이 동시에 1개씩 구매 요청
   대기열·알림은 끈다 (구매 처리만 비교), DB 연결 수는 기본값(10)으로 같게
-  방식마다 서버를 새로 띄우고, 기록하지 않는 예열 1번 뒤 3번 측정 -> 가운데 값(중앙값)
+  방식마다 서버를 새로 띄우고, 기록하지 않는 예열 1번 뒤 5번 측정 -> 가운데 값(중앙값)
 
 준비물: MySQL(localhost:3306), Redis(localhost:6379), k6, Java 21.
   DB 비밀번호는 src/main/resources/application-secret.yaml 에서 읽는다 (이 파일은 커밋하지 않음).
   부하 테스트 전용 DB ticketonline_load 를 쓴다 (개발 DB 와 섞이지 않게). Redis 는 3번 DB.
 
-실행 (저장소 최상위에서):  py -3 load-test/run.py            # A, B, C 각 3번
+실행 (저장소 최상위에서):  py -3 load-test/run.py            # A, B, C 각 5번
                            py -3 load-test/run.py redis 1    # 방식 C 만 1번
 결과: load-test/results/results.md, results.json
 """
@@ -268,7 +268,7 @@ def summarize(results):
 
 def main():
     only = sys.argv[1] if len(sys.argv) > 1 else None
-    runs = int(sys.argv[2]) if len(sys.argv) > 2 else 3
+    runs = int(sys.argv[2]) if len(sys.argv) > 2 else 5
     WORK.mkdir(exist_ok=True)
     RESULTS.mkdir(exist_ok=True)
     jar = build_jar()

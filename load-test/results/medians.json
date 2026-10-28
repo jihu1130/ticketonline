@@ -1,7 +1,7 @@
 {
   "pessimistic": {
-    "tps": 866.6,
-    "p95_ms": 1115.7,
+    "tps": 1904.8,
+    "p95_ms": 489.4,
     "error_rate": 0.0,
     "success": 100,
     "sold_out": 900,
@@ -9,17 +9,17 @@
     "oversell": 0
   },
   "optimistic": {
-    "tps": 543.8,
-    "p95_ms": 1705.4,
-    "error_rate": 10.9,
+    "tps": 1562.5,
+    "p95_ms": 595.7,
+    "error_rate": 18.2,
     "success": 100,
-    "sold_out": 791,
-    "server_errors": 109,
+    "sold_out": 718,
+    "server_errors": 182,
     "oversell": 0
   },
   "redis": {
-    "tps": 900.1,
-    "p95_ms": 1082.1,
+    "tps": 2958.6,
+    "p95_ms": 213.4,
     "error_rate": 0.0,
     "success": 100,
     "sold_out": 900,

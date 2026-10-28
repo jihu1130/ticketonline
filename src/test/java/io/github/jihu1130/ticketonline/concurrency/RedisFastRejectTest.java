@@ -20,8 +20,10 @@ import org.springframework.test.context.TestPropertySource;
 /**
  * 방식 C 개선: DB 연결을 잡기 전에 Redis 에서 거절한다 (PurchaseFacade -> RedisStock.reserveAhead).
  * Hibernate 통계로 "DB 에 보낸 쿼리 수"를 세어 매진 요청이 DB 를 전혀 쓰지 않는지 확인한다.
+ * 알림은 끈다: 앞선 구매의 알림이 커밋 뒤 다른 스레드에서 저장되며 쿼리 수에 섞이기 때문 (알림은 MessageNoticeTest 에서 확인)
  */
-@TestPropertySource(properties = {"app.purchase.strategy=redis", "spring.jpa.properties.hibernate.generate_statistics=true"})
+@TestPropertySource(properties = {"app.purchase.strategy=redis", "spring.jpa.properties.hibernate.generate_statistics=true",
+        "app.notice.enabled=false"})
 class RedisFastRejectTest extends ConcurrencyTestSupport {
 
     @Autowired private EntityManagerFactory entityManagerFactory;
