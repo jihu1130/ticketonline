@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>관리자 - 티켓온라인</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" type="image/svg+xml" href="/images/favicon.svg">
+</head>
+<body>
+  <header class="header">
+    <div class="header-inner">
+      <a class="logo" href="/"><img class="logo-img" src="/images/logo.svg" alt="TicketOnline 티켓온라인"></a>
+      <nav class="gnb">
+        <a href="/?type=TICKET">티켓</a>
+        <a href="/?type=GOODS">굿즈</a>
+      </nav>
+      <nav class="nav"></nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <div class="page-head">
+      <h1>관리자</h1>
+      <p>k6 부하 테스트 결과 (재고 100개에 1,000명 동시 구매, 목표 p95 300ms 이하 · 에러율 1% 미만)</p>
+    </div>
+    <div id="admin"><p class="loading">불러오는 중입니다...</p></div>
+  </main>
+
+  <script src="/js/api.js"></script>
+  <script src="/js/product-common.js"></script>
+  <script src="/js/admin.js"></script>
+</body>
+</html>

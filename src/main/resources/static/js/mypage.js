@@ -51,6 +51,7 @@ function render(me, orders, unread) {
       <a class="link-card" href="/my-orders.html"><strong>구매 내역</strong><span>주문 취소·수량·배송지·회차 변경</span></a>
       <a class="link-card" href="/messages.html"><strong>메시지함</strong><span>알림과 판매자 문의 채팅</span></a>
       <a class="link-card" href="/seller.html"><strong>판매 관리</strong><span>상품 등록과 판매 현황</span></a>
+      ${me.role === "ADMIN" ? `<a class="link-card" href="/admin.html"><strong>관리자</strong><span>k6 부하 테스트 결과</span></a>` : ""}
     </section>`;
 }
 

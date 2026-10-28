@@ -498,6 +498,18 @@ a.btn { display: block; text-align: center; text-decoration: none; }
   .mypage-grid, .mypage-links { grid-template-columns: 1fr; }
 }
 
+/* ── 관리자 (부하 테스트 결과) ── */
+.admin-section + .admin-section { margin-top: 16px; }
+.admin-section .section-head { margin: 0 0 12px; }
+.admin-section .section-head h2 { margin: 0; padding: 0; font-size: 18px; border: none; }
+.table-scroll { overflow-x: auto; margin-bottom: 10px; }
+.result-table { width: 100%; border-collapse: collapse; font-size: 13px; white-space: nowrap; }
+.result-table th, .result-table td { padding: 10px 12px; text-align: right; border-bottom: 1px solid var(--line); }
+.result-table thead th { font-weight: 700; color: var(--sub); background: var(--bg); }
+.result-table th:first-child { text-align: left; }
+.result-table tbody th { font-weight: 700; color: var(--navy); }
+.result-table td.is-bad { font-weight: 700; color: var(--error); }
+
 /* ── 메시지함 ── */
 .message-tabs { flex-wrap: wrap; align-items: center; margin-bottom: 4px; }
 .message-tabs .nav-count { margin-left: 6px; }
@@ -598,7 +610,7 @@ a.btn { display: block; text-align: center; text-decoration: none; }
   .logo-img { height: 30px; }
   .nav { gap: 8px; }
   /* 로그인했을 때 메뉴가 화면보다 넓어지지 않게 "OO님"은 숨기고, 메시지함은 아이콘으로 */
-  .nav > span { display: none; }
+  .nav > span, .nav > .badge { display: none; } /* 관리자 화면은 마이페이지 바로가기로 간다 */
   .nav-label { display: none; }
   .nav-messages::before { content: "✉"; font-size: 17px; line-height: 1; }
   .nav-me::before { content: "MY"; font-size: 12px; font-weight: 800; }

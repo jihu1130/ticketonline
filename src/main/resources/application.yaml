@@ -47,6 +47,9 @@ app:
     admitted-seconds: 300
     # 이 시간 동안 순번 확인이 없으면 화면을 닫은 것으로 보고 줄에서 뺀다
     stale-seconds: 30
+  load-test:
+    # k6 부하 테스트 결과 폴더 (load-test/run.py 가 씀). 관리자 화면에서 보여준다. 실행 위치 기준 상대 경로
+    results-dir: ${LOAD_TEST_RESULTS_DIR:load-test/results}
 
 jwt:
   # 토큰 서명 비밀키(jwt.secret)는 application-secret.yaml 에만 적는다.

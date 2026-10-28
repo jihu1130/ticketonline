@@ -41,4 +41,10 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	// 개발 DB에 예시 데이터를 넣는 테스트(@Tag("seed"))는 --tests 로 직접 고를 때만 돈다
+	doFirst {
+		if (filter.commandLineIncludePatterns.isEmpty()) {
+			options { excludeTags 'seed' }
+		}
+	}
 }

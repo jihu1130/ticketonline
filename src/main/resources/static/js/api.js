@@ -113,7 +113,7 @@ function renderHeader() {
     nav.innerHTML = `<a href="/login.html">로그인</a><a href="/signup.html">회원가입</a>`;
     return;
   }
-  const adminBadge = member.role === "ADMIN" ? `<span class="badge">관리자</span>` : "";
+  const adminBadge = member.role === "ADMIN" ? `<a class="badge" href="/admin.html">관리자</a>` : "";
   nav.innerHTML = `
     ${adminBadge}
     <a class="nav-messages" href="/messages.html" aria-label="메시지함"><span class="nav-label">메시지함</span><em class="nav-count" id="unread-count" hidden></em></a>

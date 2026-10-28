@@ -47,12 +47,13 @@ public class Member {
     /** null이면 활성 회원 */
     private LocalDateTime deletedAt;
 
+    /** role을 정하지 않으면 일반 회원(USER) */
     @Builder
-    private Member(String email, String password, String name) {
+    private Member(String email, String password, String name, MemberRole role) {
         this.email = email;
         this.password = password;
         this.name = name;
-        this.role = MemberRole.USER;
+        this.role = role != null ? role : MemberRole.USER;
     }
 
     @PrePersist
